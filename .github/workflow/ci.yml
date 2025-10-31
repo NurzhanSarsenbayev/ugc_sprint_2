@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ master ]
+  push:
+    branches: [ master ]
+
+jobs:
+  lint-and-typecheck:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml', '**/setup.cfg') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.dev.txt ]; then pip install -r requirements.dev.txt; fi
+          # если deps через pyproject/poetry/pdm — поставь соответствующие команды
+
+      - name: Flake8 (wemake) → HTML report
+        run: |
+          mkdir -p reports/flake8
+          flake8 . --format=html --htmldir=reports/flake8
+
+      - name: Mypy → HTML report
+        run: |
+          mkdir -p reports/mypy
+          mypy . --html-report reports/mypy
+
+      - name: Upload reports (artifacts)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reports-${{ matrix.python-version }}
+          path: |
+            reports/flake8
+            reports/mypy
+
+  telegram-notify:
+    needs: [lint-and-typecheck]
+    runs-on: ubuntu-latest
+    if: always()  # уведомлять и об успехе, и о неуспехе
+    steps:
+      - name: Set status
+        id: status
+        run: |
+          if [ "${{ needs.lint-and-typecheck.result }}" = "success" ]; then
+            echo "msg=✅ CI passed on all Python versions" >> $GITHUB_OUTPUT
+          else
+            echo "msg=❌ CI failed: check artifacts & logs" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Telegram notify
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT:  ${{ secrets.TELEGRAM_CHAT_ID }}
+          TEXT:     "${{ steps.status.outputs.msg }} for ${{ github.repository }} • PR #${{ github.event.pull_request.number || '—' }} • Commit ${{ github.sha }}"
+        run: |
+          if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT" ]; then
+            echo "Telegram secrets not configured, skipping."
+            exit 0
+          fi
+          curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d chat_id="${TG_CHAT}" \
+            --data-urlencode text="$TEXT" \
+            -d parse_mode="HTML" > /dev/null

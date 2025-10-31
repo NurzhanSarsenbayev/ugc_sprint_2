@@ -1,0 +1,25 @@
+[tool.flake8]
+max-line-length = 100
+select = ["WPS","E","F","I","B","C90"]
+ignore = [
+  "WPS305",  # f-strings допустимы (пример)
+  "WPS323",  # % форматирование (если нужно)
+  "WPS110",  # короткие именования (если часто используешь i, j и т.п.)
+]
+per-file-ignores = [
+  "__init__.py: F401",
+  "tests/*: S101,DAR101,DAR201,WPS432",
+]
+exclude = [".git", ".venv", "venv", "build", "dist", "migrations"]
+
+# HTML-отчёт flake8 формируется отдельной командой (ниже в CI), путь управляется CLI.
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+disallow_untyped_defs = true
+warn_return_any = true
+warn_unused_ignores = true
+no_implicit_optional = true
+strict_optional = true
+# HTML-отчёт задаётся флагом CLI: --html-report .

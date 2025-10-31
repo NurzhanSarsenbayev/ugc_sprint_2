@@ -1,0 +1,137 @@
+# все переменные берутся из infra/.env
+# например: APP_PORT, MONGO_DSN, POSTGRES_USER и т.п.
+
+services:
+  api:
+    build: ../
+    container_name: engagement_api
+    env_file: [.env]
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ../logs/api:/var/log/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  mongo:
+    image: mongo:7.0
+    container_name: engagement_mongo
+    command: ["--replSet", "rs0"]
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  # одноразовый helper, чтобы инициировать replica set
+  mongo-rs-init:
+    image: mongo:7.0
+    depends_on:
+      mongo:
+        condition: service_healthy
+    entrypoint: >
+      bash -lc "mongosh mongodb://mongo:27017 --eval
+      \"rs.initiate({_id: 'rs0', members: [{ _id: 0, host: 'mongo:27017'}]}); rs.status();\""
+    restart: "no"
+
+  postgres:
+    image: postgres:16
+    container_name: engagement_pg
+    env_file: [.env]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-benchmark}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-benchmark}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  redis:
+    image: redis:7
+    container_name: engagement_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    container_name: engagement_es
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      # для локалки, чтобы не возиться с логином/паролем
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -q '\"status\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.15.0
+    container_name: engagement_kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: unless-stopped
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.15.0
+    container_name: engagement_logstash
+    ports:
+      - "5044:5044"
+    volumes:
+      - ./elk/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: unless-stopped
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.15.0
+    container_name: engagement_filebeat
+    user: root                        # чтобы читать volume с логами
+    command: ["--strict.perms=false"] # иначе ругается на права в compose
+    volumes:
+      - ./elk/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ../logs/api:/var/log/app
+    depends_on:
+      logstash:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
+  pg_data:
