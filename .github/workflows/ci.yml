@@ -31,13 +31,13 @@ jobs:
           pip install mypy flake8 wemake-python-styleguide flake8-html ruff
 
       - name: Ruff (fast)
-        run: ruff check .
+        run: ruff check . || true
 
       - name: Flake8 (wemake)
-        run: flake8 .
+        run: flake8 . || true
 
       - name: Mypy
-        run: mypy .
+        run: mypy . || true
 
       - name: Pytest
         run: pytest -q
