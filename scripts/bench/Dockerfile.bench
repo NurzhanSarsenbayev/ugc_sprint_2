@@ -1,0 +1,16 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Кладём только requirements — так кэш будет срабатывать корректно.
+COPY scripts/bench/requirements-bench.txt /tmp/requirements.txt
+
+# Обновим pip и поставим зависимости (psycopg_pool тоже отсюда подтянется)
+RUN pip install --no-cache-dir -U pip \
+ && pip install --no-cache-dir -r /tmp/requirements.txt
+
+# По умолчанию просто покажем версию и «готов»
+CMD bash -lc "python -V && echo bench ready"

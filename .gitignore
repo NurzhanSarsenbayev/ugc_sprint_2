@@ -5,6 +5,7 @@ __pycache__/
 *.pyd
 .env
 venv/
+.venv/
 
 # IDE
 .idea/
@@ -17,3 +18,5 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+
+debug_bench_snapshot.*
