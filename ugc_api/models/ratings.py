@@ -1,11 +1,21 @@
-from pydantic import BaseModel, Field, conint
+from pydantic import BaseModel
+from typing import Optional
 
-class RatingIn(BaseModel):
-    film_id: str
-    value: conint(ge=0, le=10)
 
-class FilmStatsOut(BaseModel):
+class RatingPutResponse(BaseModel):
     film_id: str
-    likes_count: int = 0
-    dislikes_count: int = 0
-    avg_rating: float = 0.0
+    score: int
+
+
+class RatingGetResponse(BaseModel):
+    film_id: str
+    user_id: str
+    score: Optional[int]  # None если нет оценки
+
+
+class FilmStatsResponse(BaseModel):
+    film_id: str
+    avg_rating: Optional[float]
+    likes: int
+    dislikes: int
+    count: int

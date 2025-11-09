@@ -73,11 +73,10 @@ services:
   redis:
     image: redis:7
     container_name: engagement_redis
-    ports:
-      - "6379:6379"
     restart: unless-stopped
 
   elasticsearch:
+    profiles: ["elk"]
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
     container_name: engagement_es
     environment:
@@ -88,6 +87,8 @@ services:
     ports:
       - "9200:9200"
     restart: unless-stopped
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -q '\"status\"'"]
       interval: 10s
@@ -96,18 +97,22 @@ services:
       start_period: 20s
 
   kibana:
+    profiles: ["elk"]
     image: docker.elastic.co/kibana/kibana:8.15.0
     container_name: engagement_kibana
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     ports:
       - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    volumes:
+      - kibana_data:/usr/share/kibana/data
     depends_on:
       elasticsearch:
         condition: service_healthy
     restart: unless-stopped
 
   logstash:
+    profiles: ["elk"]
     image: docker.elastic.co/logstash/logstash:8.15.0
     container_name: engagement_logstash
     ports:
@@ -120,18 +125,25 @@ services:
     restart: unless-stopped
 
   filebeat:
+    profiles: ["elk"]
     image: docker.elastic.co/beats/filebeat:8.15.0
     container_name: engagement_filebeat
-    user: root                        # чтобы читать volume с логами
-    command: ["--strict.perms=false"] # иначе ругается на права в compose
+    user: root
+    command: [ "-e", "--strict.perms=false" ]   # <-- лог в stdout + игнор прав
     volumes:
       - ./elk/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
-      - ../logs/api:/var/log/app
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - filebeat_data:/usr/share/filebeat/data
     depends_on:
       logstash:
         condition: service_started
     restart: unless-stopped
 
+
 volumes:
   mongo_data:
   pg_data:
+  es_data:
+  kibana_data:
+  filebeat_data:

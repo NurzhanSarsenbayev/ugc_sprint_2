@@ -17,6 +17,8 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY ugc_api ./ugc_api
 COPY scripts ./scripts
+COPY tests ./tests
+COPY pytest.ini ./pytest.ini
 
 EXPOSE 8080
 

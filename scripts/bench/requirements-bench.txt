@@ -4,3 +4,4 @@ pymongo>=4.9,<5.0
 typing-extensions>=4.6
 pytz>=2024.1
 REQ
+psycopg_pool==3.2.2
