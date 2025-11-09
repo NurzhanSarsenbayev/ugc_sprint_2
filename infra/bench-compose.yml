@@ -1,0 +1,62 @@
+services:
+  # --- MongoDB для бенчей ---
+  mongo:
+    image: mongo:7.0
+    container_name: bench_mongo
+    command: [ "mongod", "--replSet", "rs0", "--bind_ip_all" ]
+    ports:
+      - "27017:27017"
+    volumes:
+      - bench_mongo_data:/data/db
+      - ../scripts:/scripts:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "mongosh --quiet --eval 'JSON.stringify(db.hello().isWritablePrimary)' | grep -q true" ]
+      start_period: 10s
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # --- PostgreSQL для бенчей ---
+  postgres:
+    image: postgres:16
+    container_name: bench_postgres
+    environment:
+      POSTGRES_DB: bench
+      POSTGRES_USER: bench
+      POSTGRES_PASSWORD: bench
+    ports:
+      - "5432:5432"
+    volumes:
+      - bench_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bench -d bench"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # --- Runner для скриптов бенчей/сидов ---
+  bench:
+    build:
+      context: ..
+      dockerfile: scripts/bench/Dockerfile.bench
+    image: ugc-bench:latest
+    container_name: bench_runner
+    working_dir: /app
+    volumes:
+      - ../scripts:/app/scripts:rw   # код монтируем, зависимости уже в образе
+    depends_on:
+      mongo:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      MONGO_DSN: mongodb://mongo:27017/engagement_bench?replicaSet=rs0
+      PG_DSN: postgresql://bench:bench@postgres:5432/bench
+      TOTAL: 1000000
+      BATCH: 10000
+      CSV_BATCH: 100000
+    command: >
+      bash -lc "python -V && echo 'bench ready'"
+volumes:
+  bench_mongo_data:
+  bench_pg_data:

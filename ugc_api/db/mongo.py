@@ -1,23 +1,49 @@
-from typing import Any
-from pymongo import MongoClient
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from ugc_api.core.config import settings
+import logging
 
-_client: MongoClient | None = None
+_client: AsyncIOMotorClient | None = None
 
-def get_client() -> MongoClient:
+
+async def get_client() -> AsyncIOMotorClient:
+    """
+    Singleton-клиент Motor с явными таймаутами и пулом.
+    """
     global _client
     if _client is None:
-        _client = MongoClient(settings.mongo_dsn)
+        _client = AsyncIOMotorClient(
+            settings.mongo_dsn,
+            appname="ugc-engagement-api",
+            tz_aware=True,  # created_at будет aware
+            uuidRepresentation="standard",
+            maxPoolSize=50,
+            minPoolSize=0,
+            serverSelectionTimeoutMS=3000,
+            connectTimeoutMS=3000,
+            socketTimeoutMS=5000,
+            retryWrites=True,
+        )
+        # быстрая проверка коннекта (не блокируем запуск дольше таймаута)
+        try:
+            await _client.admin.command("ping")
+        except Exception as e:
+            logging.getLogger(__name__).warning(
+                "mongo_ping_failed", extra={"err": str(e)})
     return _client
 
-def get_db():
-    return get_client()[settings.mongo_db]
 
-def col(name: str):
-    return get_db()[name]
+async def get_mongo_db() -> AsyncIOMotorDatabase:
+    client = await get_client()
+    return client[settings.mongo_db]
 
-_client = MongoClient(settings.mongo_dsn)
-db = _client[settings.mongo_db]
-ratings = db["ratings"]  # {user_id, film_id, value:int, updated_at}
-bookmarks = db["bookmarks"]  # {user_id, film_id, created_at}
-reviews = db["reviews"]  # {review_id, user_id, film_id, text, created_at, votes: {up:int, down:int}}
+
+async def get_collection(name: str):
+    db = await get_mongo_db()
+    return db[name]
+
+
+async def close_client() -> None:
+    global _client
+    if _client is not None:
+        _client.close()
+        _client = None

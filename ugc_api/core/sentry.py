@@ -1,10 +1,18 @@
-import logging
 import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
 
-def setup_sentry(dsn: str, environment: str, release: str | None = None):
+
+def init_sentry(dsn: str, environment: str = "dev") -> None:
     if not dsn:
-        logging.info("sentry_disabled")
         return
-    sentry_logging = LoggingIntegration(level=logging.INFO, event_level=logging.ERROR)
-    sentry_sdk.init(dsn=dsn, environment=environment, release=release, integrations=[sentry_logging])
+    sentry_sdk.init(
+        dsn=dsn,
+        environment=environment,
+        integrations=[
+            LoggingIntegration(level=None, event_level=None),
+            FastApiIntegration(),
+        ],
+        traces_sample_rate=1.0,
+        send_default_pii=True,
+    )

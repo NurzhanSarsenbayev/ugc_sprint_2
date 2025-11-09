@@ -1,0 +1,13 @@
+[run]
+branch = True
+source = ugc_api
+omit =
+    # инфраструктура/клей — не несёт доменной ценности
+    ugc_api/core/sentry.py
+    ugc_api/db/mongo.py
+    ugc_api/db/postgres.py
+    ugc_api/api/v1/debug.py
+
+[report]
+show_missing = True
+skip_covered = True

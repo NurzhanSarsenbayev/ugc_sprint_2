@@ -9,11 +9,15 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8080
 
-    mongo_dsn: str = "mongodb://mongo:27017/?replicaSet=rs0"
+    mongo_dsn: str = Field(
+        default="mongodb://mongo:27017/engagement?replicaSet=rs0",
+        alias="MONGO_DSN"
+    )
     mongo_db: str = "engagement"
 
-    sentry_dsn: str = ""
-
+    sentry_dsn: str = Field(default="", alias="SENTRY_DSN")
+    sentry_test_enabled: bool = Field(default=False,
+                                      alias="SENTRY_TEST_ENABLED")
     # Pydantic v2: модель конфигурации
     model_config = SettingsConfigDict(env_file="infra/.env", extra="ignore")
 
