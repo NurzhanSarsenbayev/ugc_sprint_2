@@ -54,3 +54,12 @@ async def cache_del(key: str) -> None:
         await _client_instance().delete(key)
     except Exception:
         log.exception("Redis DEL failed (key=%s)", key)
+
+
+async def redis_ping() -> bool:
+    try:
+        await _client_instance().ping()
+        return True
+    except Exception:
+        log.exception("Redis PING failed")
+        return False
