@@ -48,6 +48,7 @@ class FilmStatsRepo:
             },
             upsert=True,
             return_document=ReturnDocument.AFTER,
+            projection={"_id": 0},
         )
 
     async def apply_inc_and_set(

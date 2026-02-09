@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from ugc_api.api.v1 import debug
 from ugc_api.api.v1.bookmarks import router as bookmarks_router
 from ugc_api.api.v1.debug import include_debug_routes
 from ugc_api.api.v1.film_stats import router as film_stats_router
@@ -58,3 +59,4 @@ app.include_router(reviews_router)
 app.include_router(likes_router)
 app.include_router(film_stats_router)
 app.include_router(ready_check_router)
+app.include_router(debug.router)

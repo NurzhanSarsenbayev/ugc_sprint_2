@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     )
     mongo_db: str = "engagement"
 
+    redis_dsn: str = Field(default="redis://redis:6379/0", alias="REDIS_DSN")
+    film_stats_cache_ttl: int = Field(default=60, alias="FILM_STATS_CACHE_TTL")
+
     sentry_dsn: str = Field(default="", alias="SENTRY_DSN")
     sentry_test_enabled: bool = Field(default=False, alias="SENTRY_TEST_ENABLED")
     # Pydantic v2

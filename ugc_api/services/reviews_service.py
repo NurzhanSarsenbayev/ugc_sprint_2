@@ -73,6 +73,7 @@ class ReviewsService:  # noqa: WPS214 (methods count)
             )
             if self.stats:
                 await self.stats.apply_review_created(data.film_id)
+                await self.stats.invalidate_stats_cache(data.film_id)
             return ReviewCreateResponse(review_id=review_id)
         except PyMongoError as error:
             raise RuntimeError(f"mongo_review_create_error: {error}") from error
@@ -161,6 +162,7 @@ class ReviewsService:  # noqa: WPS214 (methods count)
                 # 3) update aggregates
                 if self.stats:
                     await self.stats.apply_review_deleted(film_id)
+                    await self.stats.invalidate_stats_cache(film_id)
                 return True
         except PyMongoError as error:
             raise RuntimeError(f"mongo_review_delete_error: {error}") from error
@@ -213,6 +215,7 @@ class ReviewsService:  # noqa: WPS214 (methods count)
                             old_delta,
                             new_delta,
                         )
+                        await self.stats.invalidate_stats_cache(film_id)
 
                 return ReviewVoteResponse(ok=True, applied=True)
         except PyMongoError as error:
@@ -263,6 +266,7 @@ class ReviewsService:  # noqa: WPS214 (methods count)
                             old_delta,
                             None,
                         )
+                        await self.stats.invalidate_stats_cache(film_id)
 
                 return ReviewVoteResponse(ok=True, applied=True)
         except PyMongoError as error:
