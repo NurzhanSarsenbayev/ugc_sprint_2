@@ -1,61 +1,61 @@
-# UGC Service (Transactional + Analytical Backend)
+# UGC Service  
+![CI](https://github.com/<your-username>/ugc_sprint_2/actions/workflows/ci.yml/badge.svg)
+![Coverage](https://img.shields.io/badge/coverage-90%25+-brightgreen)
 
-A backend service for collecting and aggregating user-generated content
-with an explicit separation between write-heavy transactional workloads
-and read-heavy analytical workloads.
+Transactional + Aggregated Backend (MongoDB + Redis + FastAPI)
 
-Example use case: online cinema platform (likes, ratings, reviews).
-The architecture is domain-agnostic and can be reused in any interaction-driven system.
+A backend service for collecting and aggregating user interactions
+(likes, ratings, reviews) with explicit workload separation.
 
----
-
-## Why This Project Exists
-
-Applications that collect user interactions (likes, ratings, reviews)
-face two fundamentally different problems:
-
-1. High-volume, low-latency writes
-2. Efficient aggregated reads (e.g. average rating, engagement stats)
-
-Using a single storage engine for both often leads to trade-offs.
-
-This project explores a practical separation of concerns:
-
-- **MongoDB** for write-optimized UGC storage (OLTP)
-- **Service-level aggregation layer** for film statistics
-- **PostgreSQL** as a benchmark/reference storage
-- **Redis** as an auxiliary performance layer
-
-The goal is not domain complexity,
-but architectural clarity and operational stability.
+Designed as a clean architectural example of:
+- write-heavy OLTP workload
+- synchronous aggregation layer
+- optional Redis caching
+- reproducible Docker-based environment
+- CI with 90%+ test coverage
 
 ---
 
-## Architecture Overview
+## What This Project Demonstrates
 
-This service is designed around workload separation:
+This service models a common real-world problem:
 
-- **MongoDB** – write-optimized storage for user interactions
-- **FilmStats aggregation layer** – maintains counters and derived metrics
-- **Redis** – optional performance optimization layer
-- **PostgreSQL** – reference storage used for benchmarking
-- **FastAPI** – public HTTP API
-- **Docker Compose** – fully reproducible environment
-- **CI (GitHub Actions)** – automated quality gate (90%+ coverage)
+Applications that collect user interactions must handle:
+
+1. High-volume writes (ratings, likes, reviews)
+2. Aggregated reads (average rating, engagement metrics)
+
+Instead of mixing concerns, this project separates them:
+
+- MongoDB → write-optimized UGC storage
+- FilmStats aggregation layer → derived counters
+- Redis → optional cache for read optimization
+- FastAPI → public API
+- Docker Compose → reproducible environment
+- GitHub Actions → quality gate
+
+The focus is architectural clarity, not domain complexity.
 
 ---
+## Project Status
 
-## Data Flow
+- CI passing (Python 3.10 / 3.11 / 3.12)
+- 90%+ test coverage
+- Transactional MongoDB layer
+- Aggregated FilmStats layer
+- Redis caching with TTL
+- Reproducible Docker environment
 
-### Write Path
-Client -> API -> MongoDB
+---
+## Architecture (High-Level)
 
-### Read / Aggregation Path
-MongoDB -> FilmStats aggregation -> API response
+Write Path:
+Client → API → MongoDB → FilmStats update → Redis invalidation
 
-### Storage Benchmark
-MongoDB vs PostgreSQL comparison  
-See `docs/research/STORAGE_BENCHMARK.md` for a practical storage comparison.
+Read Path:
+API → Redis (if cached) → fallback to MongoDB → cache result
+
+See `docs/ARCHITECTURE.md` for detailed explanation.
 
 ---
 
@@ -64,31 +64,49 @@ See `docs/research/STORAGE_BENCHMARK.md` for a practical storage comparison.
 ```bash
 cp infra/.env.sample infra/.env
 make up
+make ready
 ````
-
-Health check:
-
-http://localhost:8080/health  
-http://localhost:8080/ready
 
 Swagger:
 [http://localhost:8080/docs](http://localhost:8080/docs)
 
-Run tests:
+Health:
+[http://localhost:8080/health](http://localhost:8080/health)
+[http://localhost:8080/ready](http://localhost:8080/ready)
+
+---
+
+## Quick Demo (2–5 minutes)
+
+```bash
+make demo
+```
+
+This runs:
+
+* rating
+* like
+* bookmark
+* review
+* review vote
+* film stats aggregation
+
+Details: `docs/DEMO.md`
+
+---
+
+## Run Tests
 
 ```bash
 make test
 ```
-## Quick demo (2–5 minutes)
 
-```bash
-cp infra/.env.sample infra/.env
-make up
-make ready
-make demo
-```
+CI enforces:
 
-See docs/DEMO.md for details.
+* Ruff
+* Flake8 (wemake)
+* Mypy (non-blocking)
+* 90%+ coverage
 
 ---
 
@@ -97,7 +115,7 @@ See docs/DEMO.md for details.
 ```
 ugc_api/        FastAPI application
 infra/          Docker configuration
-scripts/        Benchmark and index utilities
+scripts/        Benchmark utilities
 tests/          Test suite
 docs/           Documentation
 ```
@@ -106,10 +124,7 @@ docs/           Documentation
 
 ## Documentation
 
-* Architecture: `docs/ARCHITECTURE.md`
-* Operations: `docs/OPERATIONS.md`
-* Demo: `docs/DEMO.md`
-* Tests: `docs/TESTS.md`
-* Research: `docs/research/STORAGE_BENCHMARK.md`
-
-```
+* Architecture → `docs/ARCHITECTURE.md`
+* Operations → `docs/OPERATIONS.md`
+* Demo → `docs/DEMO.md`
+* Benchmark research → `docs/research/STORAGE_BENCHMARK.md`
