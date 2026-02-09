@@ -9,9 +9,8 @@ import time
 import uuid
 from typing import List
 
-from motor.motor_asyncio import AsyncIOMotorClient
 import psycopg
-
+from motor.motor_asyncio import AsyncIOMotorClient
 
 # --------- parameters ----------
 
@@ -156,12 +155,9 @@ def bench_pg():
     return lat_up, lat_get, lat_agg
 
 
-def show(
-        name: str,
-        up: List[float],
-        get: List[float],
-        agg: List[float]) -> None:
+def show(name: str, up: List[float], get: List[float], agg: List[float]) -> None:
     """Print p50/p95 for each phase and total."""
+
     def line(label: str, values: List[float]) -> None:
         print(
             f"{name:<6} {label:<6} "

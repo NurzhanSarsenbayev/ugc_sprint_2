@@ -1,4 +1,5 @@
 from pymongo import MongoClient
+
 from ugc_api.core.config import settings
 
 

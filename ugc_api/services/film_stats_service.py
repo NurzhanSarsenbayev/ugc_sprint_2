@@ -36,9 +36,9 @@ class FilmStatsService:
         """Apply increment to likes/dislikes counters."""
         inc: dict[str, int] = {}
         if like_delta:
-            inc['likes'] = like_delta
+            inc["likes"] = like_delta
         if dislike_delta:
-            inc['dislikes'] = dislike_delta
+            inc["dislikes"] = dislike_delta
         return await self.repo.apply_inc_and_set(film_id, inc=inc)
 
     # ----- RATINGS -----
@@ -53,25 +53,24 @@ class FilmStatsService:
         inc: dict[str, int] = {}
 
         if old_rating is None and new_rating is not None:
-            inc['ratings_count'] = 1
-            inc['ratings_sum'] = new_rating
+            inc["ratings_count"] = 1
+            inc["ratings_sum"] = new_rating
         elif old_rating is not None and new_rating is not None:
-            inc['ratings_sum'] = new_rating - old_rating
+            inc["ratings_sum"] = new_rating - old_rating
         elif old_rating is not None and new_rating is None:
-            inc['ratings_count'] = -1
-            inc['ratings_sum'] = -old_rating
+            inc["ratings_count"] = -1
+            inc["ratings_sum"] = -old_rating
         else:
             return await self.repo.ensure_doc(film_id)
 
         updated = await self.repo.apply_inc_and_set(film_id, inc=inc)
-        ratings_count = max(updated['ratings_count'], 0)
-        ratings_sum = updated['ratings_sum']
-        avg_rating = float(ratings_sum / ratings_count) \
-            if ratings_count > 0 else 0.0
+        ratings_count = max(updated["ratings_count"], 0)
+        ratings_sum = updated["ratings_sum"]
+        avg_rating = float(ratings_sum / ratings_count) if ratings_count > 0 else 0.0
 
         return await self.repo.apply_inc_and_set(
             film_id,
-            set_={'avg_rating': avg_rating},
+            set_={"avg_rating": avg_rating},
         )
 
     # ----- REVIEWS COUNT -----
@@ -80,14 +79,14 @@ class FilmStatsService:
         """Increment reviews_count when a review is created."""
         return await self.repo.apply_inc_and_set(
             film_id,
-            inc={'reviews_count': 1},
+            inc={"reviews_count": 1},
         )
 
     async def apply_review_deleted(self, film_id: str) -> dict:
         """Decrement reviews_count when a review is deleted."""
         return await self.repo.apply_inc_and_set(
             film_id,
-            inc={'reviews_count': -1},
+            inc={"reviews_count": -1},
         )
 
     # ----- REVIEW VOTES -----
@@ -109,12 +108,12 @@ class FilmStatsService:
             return await self.repo.ensure_doc(film_id)
 
         if old_vote == 1:
-            add(inc, 'votes_up', -1)
+            add(inc, "votes_up", -1)
         if old_vote == -1:
-            add(inc, 'votes_down', -1)
+            add(inc, "votes_down", -1)
         if new_vote == 1:
-            add(inc, 'votes_up', 1)
+            add(inc, "votes_up", 1)
         if new_vote == -1:
-            add(inc, 'votes_down', 1)
+            add(inc, "votes_down", 1)
 
         return await self.repo.apply_inc_and_set(film_id, inc=inc)

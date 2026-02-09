@@ -104,10 +104,7 @@ async def run_mongo() -> dict:
     client.close()
 
     latencies.sort()
-    return {
-        "p50": pct(latencies, 50),
-        "p95": pct(latencies, 95),
-        "n": len(latencies)}
+    return {"p50": pct(latencies, 50), "p95": pct(latencies, 95), "n": len(latencies)}
 
 
 def run_pg() -> dict:
@@ -117,7 +114,7 @@ def run_pg() -> dict:
     # pool sized to concurrency
     from psycopg_pool import ConnectionPool  # local import to avoid CI deps
 
-    with (ConnectionPool(PG_DSN, min_size=1, max_size=CONC) as pool):
+    with ConnectionPool(PG_DSN, min_size=1, max_size=CONC) as pool:
         # warm-up
         with pool.connection() as warm_conn:
             pg_query_once_conn(warm_conn)
@@ -128,16 +125,12 @@ def run_pg() -> dict:
             with pool.connection() as conn:
                 return pg_query_once_conn(conn)
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=CONC
-                                                   ) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=CONC) as executor:
             for ms in executor.map(lambda _: worker(), range(OPS)):
                 latencies.append(ms)
 
     latencies.sort()
-    return {
-        "p50": pct(latencies, 50),
-        "p95": pct(latencies, 95),
-        "n": len(latencies)}
+    return {"p50": pct(latencies, 50), "p95": pct(latencies, 95), "n": len(latencies)}
 
 
 async def main() -> None:

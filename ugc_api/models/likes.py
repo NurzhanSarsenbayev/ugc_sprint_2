@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from pydantic import BaseModel, Field
 
 
@@ -9,4 +10,4 @@ class LikeSetRequest(BaseModel):
 class LikeStateResponse(BaseModel):
     film_id: str
     user_id: str
-    value: int | None = None  # None = реакции нет
+    value: int | None = None

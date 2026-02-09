@@ -1,4 +1,4 @@
-from tests.helpers import new_user, new_film, uid_header
+from tests.helpers import new_film, new_user, uid_header
 
 BASE = "/api/v1/bookmarks"
 
@@ -33,5 +33,7 @@ async def test_bookmark_delete_then_delete_again_deleted_false(client):
     await client.put(f"{BASE}/{film}", headers=uid_header(user))
     r1 = await client.delete(f"{BASE}/{film}", headers=uid_header(user))
     r2 = await client.delete(f"{BASE}/{film}", headers=uid_header(user))
-    assert (r1.json() == {"ok": True, "deleted": True}
-            and r2.json() == {"ok": True, "deleted": False})
+    assert r1.json() == {"ok": True, "deleted": True} and r2.json() == {
+        "ok": True,
+        "deleted": False,
+    }

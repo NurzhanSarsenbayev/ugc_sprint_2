@@ -1,8 +1,10 @@
+import logging
 import time
 import uuid
-import logging
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
+
 from ugc_api.core.trace import set_trace_id
 
 alog = logging.getLogger("access")
@@ -23,11 +25,9 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                 extra={
                     "method": request.method,
                     "path": request.url.path,
-                    "query": str(request.url.query)
-                    if request.url.query else "",
+                    "query": str(request.url.query) if request.url.query else "",
                     "status": status if "status" in locals() else 500,
                     "latency_ms": dur_ms,
-                    "client_ip": request.client.host
-                    if request.client else None,
+                    "client_ip": request.client.host if request.client else None,
                 },
             )

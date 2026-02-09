@@ -8,7 +8,6 @@ from tests.helpers import new_film, new_user, read_stats, uid_header
 from ugc_api.dependencies import get_db
 from ugc_api.services.ratings_service import RatingsService
 
-
 # ---------------------------------------------------------------------------
 
 

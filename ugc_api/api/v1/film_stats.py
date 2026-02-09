@@ -1,6 +1,8 @@
-from uuid import UUID
 from http import HTTPStatus
+from uuid import UUID
+
 from fastapi import APIRouter, Depends
+
 from ugc_api.dependencies import get_film_stats_service
 from ugc_api.models.film_stats import FilmStats
 from ugc_api.services.film_stats_service import FilmStatsService

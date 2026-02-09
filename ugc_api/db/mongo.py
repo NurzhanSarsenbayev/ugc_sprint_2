@@ -1,20 +1,22 @@
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
-from ugc_api.core.config import settings
 import logging
+
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+
+from ugc_api.core.config import settings
 
 _client: AsyncIOMotorClient | None = None
 
 
 async def get_client() -> AsyncIOMotorClient:
     """
-    Singleton-клиент Motor с явными таймаутами и пулом.
+    Singleton Motor client with explicit timeouts and connection pool settings.
     """
     global _client
     if _client is None:
         _client = AsyncIOMotorClient(
             settings.mongo_dsn,
             appname="ugc-engagement-api",
-            tz_aware=True,  # created_at будет aware
+            tz_aware=True,  # ensure created_at is timezone-aware
             uuidRepresentation="standard",
             maxPoolSize=50,
             minPoolSize=0,
@@ -23,12 +25,11 @@ async def get_client() -> AsyncIOMotorClient:
             socketTimeoutMS=5000,
             retryWrites=True,
         )
-        # быстрая проверка коннекта (не блокируем запуск дольше таймаута)
+        # quick connectivity check (do not block startup longer than timeout)
         try:
             await _client.admin.command("ping")
         except Exception as e:
-            logging.getLogger(__name__).warning(
-                "mongo_ping_failed", extra={"err": str(e)})
+            logging.getLogger(__name__).warning("mongo_ping_failed", extra={"err": str(e)})
     return _client
 
 

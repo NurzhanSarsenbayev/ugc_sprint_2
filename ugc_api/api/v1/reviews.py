@@ -1,16 +1,21 @@
-from uuid import UUID
 from http import HTTPStatus
-from fastapi import APIRouter, Depends, Path, Query, HTTPException
+from uuid import UUID
 
-from ugc_api.dependencies import user_id_header, get_reviews_service
-from ugc_api.services.reviews_service import ReviewsService
-from ugc_api.models.reviews import (
-    ReviewCreateRequest, ReviewCreateResponse,
-    ReviewItem, ReviewListResponse,
-    ReviewUpdateRequest, ReviewUpdateResponse,
-    ReviewVoteRequest, ReviewVoteResponse,
-)
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
+
 from ugc_api.api.http_utils import handle_runtime_errors, not_found_if_none
+from ugc_api.dependencies import get_reviews_service, user_id_header
+from ugc_api.models.reviews import (
+    ReviewCreateRequest,
+    ReviewCreateResponse,
+    ReviewItem,
+    ReviewListResponse,
+    ReviewUpdateRequest,
+    ReviewUpdateResponse,
+    ReviewVoteRequest,
+    ReviewVoteResponse,
+)
+from ugc_api.services.reviews_service import ReviewsService
 
 router = APIRouter(prefix="/api/v1/reviews", tags=["reviews"])
 
@@ -20,20 +25,17 @@ ERRMAP = {
 }
 
 
-@router.post("", response_model=ReviewCreateResponse,
-             status_code=HTTPStatus.CREATED)
+@router.post("", response_model=ReviewCreateResponse, status_code=HTTPStatus.CREATED)
 @handle_runtime_errors(ERRMAP)
 async def create_review(
     body: ReviewCreateRequest,
     user_id: str = Depends(user_id_header),
     svc: ReviewsService = Depends(get_reviews_service),
 ):
-    return await svc.create_review(user_id=user_id,
-                                   data=body)
+    return await svc.create_review(user_id=user_id, data=body)
 
 
-@router.get("/{review_id}", response_model=ReviewItem,
-            status_code=HTTPStatus.OK)
+@router.get("/{review_id}", response_model=ReviewItem, status_code=HTTPStatus.OK)
 @handle_runtime_errors(ERRMAP)
 async def get_review(
     review_id: str = Path(..., description="Mongo ObjectId"),
@@ -42,9 +44,7 @@ async def get_review(
     return not_found_if_none(await svc.get_review(review_id))
 
 
-@router.get("/films/{film_id}",
-            response_model=ReviewListResponse,
-            status_code=HTTPStatus.OK)
+@router.get("/films/{film_id}", response_model=ReviewListResponse, status_code=HTTPStatus.OK)
 @handle_runtime_errors(ERRMAP)
 async def list_reviews_by_film(
     film_id: UUID,
@@ -53,15 +53,10 @@ async def list_reviews_by_film(
     sort: str = Query("new", pattern="^(new|top)$"),
     svc: ReviewsService = Depends(get_reviews_service),
 ):
-    return await svc.list_by_film(film_id=str(film_id),
-                                  limit=limit,
-                                  offset=offset,
-                                  sort=sort)
+    return await svc.list_by_film(film_id=str(film_id), limit=limit, offset=offset, sort=sort)
 
 
-@router.patch("/{review_id}",
-              response_model=ReviewUpdateResponse,
-              status_code=HTTPStatus.OK)
+@router.patch("/{review_id}", response_model=ReviewUpdateResponse, status_code=HTTPStatus.OK)
 @handle_runtime_errors(ERRMAP)
 async def update_review_text(
     review_id: str,
@@ -69,35 +64,30 @@ async def update_review_text(
     user_id: str = Depends(user_id_header),
     svc: ReviewsService = Depends(get_reviews_service),
 ):
-    ok = await svc.update_text(user_id=user_id,
-                               review_id=review_id,
-                               text=body.text)
+    ok = await svc.update_text(user_id=user_id, review_id=review_id, text=body.text)
     if not ok:
-        # автор не совпал или не найдена рецензия
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
-                            detail="review_not_found_or_not_author")
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="review_not_found_or_not_author"
+        )
     return ReviewUpdateResponse(ok=True)
 
 
-@router.delete("/{review_id}",
-               status_code=HTTPStatus.NO_CONTENT)
+@router.delete("/{review_id}", status_code=HTTPStatus.NO_CONTENT)
 @handle_runtime_errors(ERRMAP)
 async def delete_review(
     review_id: str,
     user_id: str = Depends(user_id_header),
     svc: ReviewsService = Depends(get_reviews_service),
 ):
-    deleted = await svc.delete_review(user_id=user_id,
-                                      review_id=review_id)
+    deleted = await svc.delete_review(user_id=user_id, review_id=review_id)
     if not deleted:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
-                            detail="review_not_found_or_not_author")
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="review_not_found_or_not_author"
+        )
     return None
 
 
-@router.post("/{review_id}/vote",
-             response_model=ReviewVoteResponse,
-             status_code=HTTPStatus.OK)
+@router.post("/{review_id}/vote", response_model=ReviewVoteResponse, status_code=HTTPStatus.OK)
 @handle_runtime_errors(ERRMAP)
 async def vote_review(
     review_id: str,
@@ -105,19 +95,14 @@ async def vote_review(
     user_id: str = Depends(user_id_header),
     svc: ReviewsService = Depends(get_reviews_service),
 ):
-    return await svc.vote(user_id=user_id,
-                          review_id=review_id,
-                          value=body.value)
+    return await svc.vote(user_id=user_id, review_id=review_id, value=body.value)
 
 
-@router.delete("/{review_id}/vote",
-               response_model=ReviewVoteResponse,
-               status_code=HTTPStatus.OK)
+@router.delete("/{review_id}/vote", response_model=ReviewVoteResponse, status_code=HTTPStatus.OK)
 @handle_runtime_errors(ERRMAP)
 async def unvote_review(
     review_id: str,
     user_id: str = Depends(user_id_header),
     svc: ReviewsService = Depends(get_reviews_service),
 ):
-    return await svc.unvote(user_id=user_id,
-                            review_id=review_id)
+    return await svc.unvote(user_id=user_id, review_id=review_id)

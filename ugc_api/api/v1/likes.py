@@ -1,6 +1,8 @@
-from uuid import UUID
 from http import HTTPStatus
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, Response
+
 from ugc_api.dependencies import get_likes_service, user_id_header
 from ugc_api.models.likes import LikeSetRequest, LikeStateResponse
 from ugc_api.services.likes_service import LikesService
@@ -8,10 +10,7 @@ from ugc_api.services.likes_service import LikesService
 router = APIRouter(prefix="/api/v1/likes", tags=["likes"])
 
 
-@router.get(
-    "/{film_id}",
-    response_model=LikeStateResponse,
-    status_code=HTTPStatus.OK)
+@router.get("/{film_id}", response_model=LikeStateResponse, status_code=HTTPStatus.OK)
 async def get_like_state(
     film_id: UUID,
     user_id: str = Depends(user_id_header),

@@ -13,10 +13,7 @@ from ugc_api.services.repositories.likes_repo import LikesRepo
 class LikesService:
     """Manage user's reaction state for a film: value ∈ {+1, -1} or None."""
 
-    def __init__(
-            self,
-            db: AsyncIOMotorDatabase,
-            stats: FilmStatsService) -> None:
+    def __init__(self, db: AsyncIOMotorDatabase, stats: FilmStatsService) -> None:
         """Initialize service with database and film stats dependency."""
         self.repo = LikesRepo(db)
         self.stats = stats

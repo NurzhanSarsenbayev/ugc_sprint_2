@@ -10,7 +10,6 @@ import uuid
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
-
 MONGO_DSN = os.getenv(
     "MONGO_DSN",
     "mongodb://localhost:27017/engagement_bench?replicaSet=rs0",

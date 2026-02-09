@@ -1,185 +1,105 @@
----
+# UGC Service (Transactional + Analytical Backend)
 
-# 🎬 UGC Analytics — Спринт 9
+A backend service for collecting and aggregating user-generated content
+with an explicit separation between write-heavy transactional workloads
+and read-heavy analytical workloads.
 
-### *Исследование хранилища и нагрузочное тестирование*
-
----
-
-## 📘 Цель
-
-В этом спринте завершается блок **UGC** (лайки, закладки, рецензии, рейтинги).
-Необходимо сравнить **MongoDB** и **PostgreSQL** на объёме данных ≥ 10 млн записей,
-провести нагрузочное тестирование и сделать вывод о выборе хранилища.
-Также выполняется интеграция **ELK**, **Sentry** и **CI/CD (GitHub Actions)**.
+Example use case: online cinema platform (likes, ratings, reviews).
+The architecture is domain-agnostic and can be reused in any interaction-driven system.
 
 ---
 
-## ⚙️ Архитектура и окружение
+## Why This Project Exists
 
-* **FastAPI + Motor + PyMongo + Psycopg 3.2** — сервис и утилиты.
-* **MongoDB 7.0 (rs0)** — хранилище UGC-сущностей.
-* **PostgreSQL 16** — база для сравнительного тестирования.
-* **Docker Compose** — инфраструктура (infra/bench-compose.yml).
-* **ELK Stack + Sentry** — наблюдаемость и логирование.
-* **CI/CD — GitHub Actions** с линтерами, тестами и Telegram-уведомлениями.
+Applications that collect user interactions (likes, ratings, reviews)
+face two fundamentally different problems:
 
----
+1. High-volume, low-latency writes
+2. Efficient aggregated reads (e.g. average rating, engagement stats)
 
-## 📊 Результаты исследования
+Using a single storage engine for both often leads to trade-offs.
 
-|  №  | Сценарий                                   | Mongo p50/p95 | Postgres p50/p95 | Вывод                             |
-| :-: | ------------------------------------------ | ------------- | ---------------- | --------------------------------- |
-|  1  | Upsert + Get + Agg (рейтинги / лайки)      | ≈ 29 / 40 мс  | ≈ 1.7 / 2.1 мс   | Postgres быстрее ≈20×             |
-|  2  | Рецензии (top-20 + последние 5)            | ≈ 7 / 14 мс   | ≈ 6 / 8 мс       | Сравнимо                          |
-|  3  | Document vs Relational (вложенные массивы) | ≈ 23 / 44 мс  | ≈ 2.5 / 3.3 мс   | Pg быстрее                        |
-|  4  | Top-N по многим фильмам (аналитика)        | —             | —                | Pg оптимален для JOIN / агрегаций |
+This project explores a practical separation of concerns:
 
----
+- **MongoDB** for write-optimized UGC storage (OLTP)
+- **Service-level aggregation layer** for film statistics
+- **PostgreSQL** as a benchmark/reference storage
+- **Redis** as an auxiliary performance layer
 
-### 💡 Выводы
-
-1. **PostgreSQL** — стабилен, предсказуем и быстрее в аналитике.
-2. **MongoDB** — гибче, с атомарными `$inc` и `$push`, проще масштабировать.
-3. Оптимальная архитектура:
-
-   * UGC-данные (лайки, рецензии, закладки) → **MongoDB**
-   * Аналитика и отчёты → **PostgreSQL / ClickHouse / Elasticsearch**
+The goal is not domain complexity,
+but architectural clarity and operational stability.
 
 ---
 
-## 🧪 Как запустить бенчмарки
+## Architecture Overview
 
-### 1️Запуск инфраструктуры
+This service is designed around workload separation:
+
+- **MongoDB** – write-optimized storage for user interactions
+- **FilmStats aggregation layer** – maintains counters and derived metrics
+- **Redis** – optional performance optimization layer
+- **PostgreSQL** – reference storage used for benchmarking
+- **FastAPI** – public HTTP API
+- **Docker Compose** – fully reproducible environment
+- **CI (GitHub Actions)** – automated quality gate (90%+ coverage)
+
+---
+
+## Data Flow
+
+### Write Path
+Client -> API -> MongoDB
+
+### Read / Aggregation Path
+MongoDB -> FilmStats aggregation -> API response
+
+### Storage Benchmark
+MongoDB vs PostgreSQL comparison  
+See `docs/research/STORAGE_BENCHMARK.md` for a practical storage comparison.
+
+---
+
+## Quickstart
 
 ```bash
-make bench-setup
-```
+cp infra/.env.sample infra/.env
+make up
+````
 
-Поднимает Mongo (rs0), Postgres и контейнер `ugc-bench`.
+Health check:
 
----
+http://localhost:8080/health  
+http://localhost:8080/ready
 
-### 2️⃣ Сидинг данных
+Swagger:
+[http://localhost:8080/docs](http://localhost:8080/docs)
 
-```bash
-make bench-seed-ratings    # 1 млн рейтингов
-make bench-seed-reviews    # 100 тыс рецензий
-```
-
----
-
-### 3️⃣ Запуск сценариев
+Run tests:
 
 ```bash
-make bench-ratings       # Upsert / Get / Agg (рейтинги)
-make bench-reviews-top   # Top-20 + Tail-5 (рецензии)
-make bench-doc-vs-rel    # Документная vs реляционная модель
-```
-
-Для кастомного запуска можно использовать:
-
-```bash
-make bench-run CMD='OPS=5000 CONCURRENCY=10 python scripts/bench/runs/ratings.py'
+make test
 ```
 
 ---
 
-## ⚙️ Makefile — основные команды
+## Project Structure
 
-| Команда                                            | Назначение                                      |
-| -------------------------------------------------- | ----------------------------------------------- |
-| `make dev`                                         | Запуск UGC API + Mongo (rs0) + Redis + Postgres |
-| `make test`                                        | Запуск pytest                                   |
-| `make lint`                                        | Линтер flake8 (wemake) + HTML-отчёт             |
-| `make mypy`                                        | Проверка mypy + HTML-отчёт                      |
-| `make fmt`                                         | Форматирование ruff                             |
-| `make elk-up` / `make elk-down` / `make elk-clean` | Управление ELK стеком                           |
-| `make bench-*`                                     | Управление бенчмарками (setup, seed, run)       |
-
----
-
-## 📈 ELK Stack
-
-```bash
-make elk-up
 ```
-
-После запуска:
-
-* **Kibana** — [http://localhost:5601](http://localhost:5601)
-* **Elasticsearch** — [http://localhost:9200](http://localhost:9200)
-
-Filebeat → Logstash → Elasticsearch → Kibana (`logs-engagement-*`).
-
-Очистка:
-
-```bash
-make elk-clean
+ugc_api/        FastAPI application
+infra/          Docker configuration
+scripts/        Benchmark and index utilities
+tests/          Test suite
+docs/           Documentation
 ```
 
 ---
 
-## 🪲 Sentry
+## Documentation
 
-Добавьте в `.env`:
-
-```bash
-SENTRY_DSN=<dsn>
-SENTRY_ENV=local
-```
-
-Проверка:
-
-```bash
-curl http://localhost:8080/__sentry-test
-```
-
----
-
-## 🤖 CI/CD (GitHub Actions)
-
-Файл — `.github/workflows/ci.yml`
-
-* Матрица Python 3.10 / 3.11 / 3.12
-* Линтеры: `wemake-python-styleguide`, `mypy`, `ruff`
-* Тесты: `pytest`
-* HTML-отчёты: `reports/mypy`, `reports/flake8`
-* Telegram-уведомления (Secrets: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_TO`)
-
-Пример уведомления:
+* Architecture: `docs/ARCHITECTURE.md`
+* Operations: `docs/OPERATIONS.md`
+* Demo: `docs/DEMO.md`
+* Tests: `docs/TESTS.md`
+* Research: `docs/research/STORAGE_BENCHMARK.md`
 
 ```
-✅ CI PASSED — ugc_sprint_2@main
-Python 3.11
-Commit: abcdef1
-Actor: NurzhanSarsenbayev
-```
-
----
-
-## 🧰 Структура проекта
-
-```
-ugc_api/                # FastAPI UGC-сервис
-scripts/bench/          # Бенчмарки и сидеры для Mongo / PG
-infra/                  # Docker Compose (infra, elk, bench)
-tests/                  # Pytest (~93 % покрытия)
-.github/workflows/      # CI-пайплайн
-docs/                   # Документация проекта
-```
-
----
-
-## 🧠 Заключение
-
-| Хранилище      | Преимущества                                   | Недостатки                                                     | Применение                    |
-| -------------- | ---------------------------------------------- | -------------------------------------------------------------- | ----------------------------- |
-| **MongoDB**    | Гибкая схема, atomic-операции, масштабирование | Переменная производительность, нет межколлекционных транзакций | лайки, рецензии, закладки     |
-| **PostgreSQL** | Стабильность, индексы, SQL, агрегации          | Жёсткая схема, сложнее масштабировать                          | аналитика, отчёты, статистика |
-
-> 💡 **Выбор:**
-> MongoDB — основное хранилище UGC.
-> Postgres — аналитический слой и админ-интерфейсы.
-
----
