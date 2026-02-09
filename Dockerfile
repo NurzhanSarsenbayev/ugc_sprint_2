@@ -11,8 +11,8 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
 
-COPY requirements/base.txt ./requirements.txt
-RUN pip install --upgrade pip && pip install -r requirements.txt
+COPY requirements/ ./requirements/
+RUN pip install --upgrade pip && pip install -r requirements/base.txt
 
 COPY ugc_api ./ugc_api
 COPY scripts ./scripts
