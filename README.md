@@ -1,42 +1,45 @@
-# UGC Service
+# UGC Service (Transactional + Analytical Backend)
 
-A backend service for collecting user-generated content (likes, ratings, reviews, bookmarks)
-with a clear separation between transactional and analytical workloads.
+A backend service for collecting and aggregating user-generated content
+with an explicit separation between write-heavy transactional workloads
+and read-heavy analytical workloads.
 
 Example domain: online cinema platform.  
-The architecture is domain-agnostic and can be reused for marketplaces,
-media platforms, or any product with user interactions.
+The design is domain-agnostic and applicable to any system
+that processes user interactions (e-commerce, marketplaces, media apps).
 
 ---
 
-## Problem
+## Why This Project Exists
 
-Modern applications collect large volumes of user interactions:
-- reactions (likes / dislikes)
-- ratings
-- reviews
-- bookmarks
+Applications that collect user interactions (likes, ratings, reviews)
+face two fundamentally different problems:
 
-These writes must be fast and reliable, while aggregated analytics
-(e.g., average rating, engagement metrics) require efficient read patterns.
+1. High-volume, low-latency writes
+2. Efficient aggregated reads (e.g. average rating, engagement stats)
 
-This project explores a practical design separating:
+Using a single storage engine for both often leads to trade-offs.
 
-- **OLTP workload** (high-volume writes)
-- **Analytical workload** (aggregated reads)
+This project explores a practical separation of concerns:
+
+- **MongoDB** for write-optimized UGC storage (OLTP)
+- **Service-level aggregation layer** for film statistics
+- **PostgreSQL** as a benchmark/reference storage
+- **Redis** as an auxiliary performance layer
+
+The goal is not domain complexity,
+but architectural clarity and operational stability.
 
 ---
 
 ## Architecture Overview
 
-- **FastAPI** — public API layer
-- **MongoDB** — primary storage for UGC (write-optimized)
-- **Redis** — auxiliary layer (caching / optimization)
-- **PostgreSQL** — reference storage for benchmarking and comparison
-- **Docker Compose** — local reproducible environment
-
-The service focuses on data modeling, aggregation logic,
-and operational stability rather than domain-specific features.
+- FastAPI — public HTTP API
+- MongoDB — primary source of truth for UGC
+- Redis — auxiliary optimization layer
+- PostgreSQL — storage benchmark comparison
+- Docker Compose — reproducible local environment
+- CI + test suite — quality gate (90%+ coverage)
 
 ---
 
@@ -45,11 +48,12 @@ and operational stability rather than domain-specific features.
 ### Write Path
 Client → API → MongoDB
 
-### Aggregation / Stats
-MongoDB → service-level aggregation → Film Stats collection
+### Read / Aggregation Path
+MongoDB → FilmStats aggregation → API response
 
-### Benchmark Layer
-MongoDB vs PostgreSQL comparison (see `docs/research/`)
+### Storage Benchmark
+MongoDB vs PostgreSQL comparison  
+See `docs/research/STORAGE_BENCHMARK.md` for a practical storage comparison.
 
 ---
 
@@ -58,31 +62,37 @@ MongoDB vs PostgreSQL comparison (see `docs/research/`)
 ```bash
 cp .env.sample .env
 make up
-```
-API:
-http://localhost:8080/docs
+````
+
+Swagger:
+[http://localhost:8080/docs](http://localhost:8080/docs)
 
 Run tests:
 
 ```bash
 make test
 ```
-### Project Structure
-ugc_api/        # FastAPI application
-infra/          # Docker and environment configuration
-scripts/        # Index management and benchmarks
-tests/          # Test suite
-docs/           # Project documentation
-
-### Documentation
-- Architecture: docs/ARCHITECTURE.md
-
-- Operations: docs/OPERATIONS.md
-
-- Demo: docs/DEMO.md
-
-- Tests: docs/TESTS.md
-
-- Storage benchmark: docs/research/STORAGE_BENCHMARK.md
 
 ---
+
+## Project Structure
+
+```
+ugc_api/        FastAPI application
+infra/          Docker configuration
+scripts/        Index and benchmark utilities
+tests/          Test suite
+docs/           Documentation
+```
+
+---
+
+## Documentation
+
+* Architecture: `docs/ARCHITECTURE.md`
+* Operations: `docs/OPERATIONS.md`
+* Demo: `docs/DEMO.md`
+* Tests: `docs/TESTS.md`
+* Research: `docs/research/STORAGE_BENCHMARK.md`
+
+```
