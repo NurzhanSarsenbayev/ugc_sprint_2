@@ -6,8 +6,12 @@ from typing import Optional
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from ugc_api.core.config import settings
+from ugc_api.db.redis import cache_del, cache_get_json, cache_set_json
 from ugc_api.services.repositories.film_stats_repo import FilmStatsRepo
 
+def _cache_key(film_id: str) -> str:
+    return f"filmstats:{film_id}"
 
 class FilmStatsService:
     """Manages film statistics for likes, ratings, and reviews."""
@@ -19,11 +23,23 @@ class FilmStatsService:
     # ----- READ -----
 
     async def get_stats(self, film_id: str) -> dict:
-        """Get or create a statistics document for a film."""
+        """Get film stats with Redis read-through cache (TTL-based)."""
+        key = _cache_key(film_id)
+
+        cached = await cache_get_json(key)
+        if cached is not None:
+            return cached
+
         doc = await self.repo.get_by_film_id(film_id)
         if doc is None:
             doc = await self.repo.ensure_doc(film_id)
+
+        await cache_set_json(key, doc, ttl=settings.film_stats_cache_ttl)
         return doc
+
+    async def invalidate_stats_cache(self, film_id: str) -> None:
+        """Invalidate Redis cache for film stats."""
+        await cache_del(_cache_key(film_id))
 
     # ----- LIKES -----
 

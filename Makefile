@@ -421,3 +421,12 @@ demo:
 	echo "6) GET film stats (should reflect rating/like/review/vote)"; \
 	curl -s "$(BASE_URL)/api/v1/film-stats/$$FILM_ID"; \
 	echo ""
+
+redis-inspect:
+	@docker exec -it engagement_redis redis-cli KEYS "filmstats:*"
+
+redis-ttl:
+	@key=$$(docker exec engagement_redis redis-cli --scan --pattern "filmstats:*" | head -n 1); \
+	if [ -z "$$key" ]; then echo "no filmstats:* keys"; exit 0; fi; \
+	echo "$$key"; \
+	docker exec engagement_redis redis-cli TTL "$$key"

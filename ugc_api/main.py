@@ -10,6 +10,7 @@ from ugc_api.api.v1.likes import router as likes_router
 from ugc_api.api.v1.ratings import router as ratings_router
 from ugc_api.api.v1.ready_check import router as ready_check_router
 from ugc_api.api.v1.reviews import router as reviews_router
+from ugc_api.api.v1 import debug
 from ugc_api.core.config import settings
 from ugc_api.core.logger import setup_json_logging, shutdown_logging
 from ugc_api.core.middleware import RequestContextMiddleware
@@ -58,3 +59,4 @@ app.include_router(reviews_router)
 app.include_router(likes_router)
 app.include_router(film_stats_router)
 app.include_router(ready_check_router)
+app.include_router(debug.router)

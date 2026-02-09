@@ -49,6 +49,7 @@ class RatingsService:
                 old_rating=old_score,
                 new_rating=int(score),
             )
+            await self.stats.invalidate_stats_cache(film_id)
 
         return RatingPutResponse(
             film_id=film_id,
@@ -94,6 +95,7 @@ class RatingsService:
                 old_rating=old_score,
                 new_rating=None,
             )
+            await self.stats.invalidate_stats_cache(film_id)
 
     # ---------- STATS ----------
 

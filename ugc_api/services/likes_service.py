@@ -48,6 +48,7 @@ class LikesService:
             like_delta=like_delta,
             dislike_delta=dislike_delta,
         )
+        await self.stats.invalidate_stats_cache(film_id)
         return old, value
 
     async def remove_like(self, film_id: str, user_id: str):
@@ -55,6 +56,8 @@ class LikesService:
         old = await self.repo.delete(film_id, user_id)
         if old == 1:
             await self.stats.apply_like_delta(film_id, like_delta=-1)
+            await self.stats.invalidate_stats_cache(film_id)
         elif old == -1:
             await self.stats.apply_like_delta(film_id, dislike_delta=-1)
+            await self.stats.invalidate_stats_cache(film_id)
         return old
