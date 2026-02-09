@@ -119,7 +119,20 @@ scripts/        Benchmark utilities
 tests/          Test suite
 docs/           Documentation
 ```
+---
 
+## Observability (optional)
+
+- Structured JSON logs (stdout) with per-request `trace_id`
+- Optional local ELK stack demo (Kibana search by `trace_id`)
+
+See: `docs/OBSERVABILITY.md`
+
+Commands:
+```bash
+make elk-up
+make elk-logs
+```
 ---
 
 ## Documentation
