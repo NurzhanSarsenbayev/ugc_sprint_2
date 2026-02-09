@@ -212,8 +212,9 @@ bench-run:
 
 # ---- Bench helpers ----
 bench-mongo-init:
-	@docker exec bench_mongo mongosh --quiet /scripts/bench/mongo-rs-init.js && \
-	  echo "rs0 PRIMARY ready" || (echo "rs-init failed" && exit 1)
+	MSYS2_ARG_CONV_EXCL='*' docker compose -f infra/bench-compose.yml exec -T mongo \
+		mongosh --file /scripts/bench/mongo-rs-init.js
+
 
 bench-wait:
 	@printf "waiting for postgres & mongo "
@@ -296,19 +297,19 @@ bench-doc-vs-rel-save:
 # ---- Bench: aggregate markdown report ----
 bench-report:
 	@mkdir -p $(REPORTS_DIR)
-	@echo "# Bench Results" > $(REPORTS_DIR)/results.md
-	@echo "" >> $(REPORTS_DIR)/results.md
-	@for f in ratings.log reviews_top_tail.log topn_many_films.log doc_vs_rel.log ; do \
-	  if [ -f "$(REPORTS_DIR)/$$f" ]; then \
-	    echo "## $${f}" >> $(REPORTS_DIR)/results.md; \
-	    echo "" >> $(REPORTS_DIR)/results.md; \
-	    echo "```text" >> $(REPORTS_DIR)/results.md; \
-	    sed 's/\x1b\[[0-9;]*m//g' "$(REPORTS_DIR)/$$f" >> $(REPORTS_DIR)/results.md; \
-	    echo "```" >> $(REPORTS_DIR)/results.md; \
-	    echo "" >> $(REPORTS_DIR)/results.md; \
-	  fi \
+	@out="$(REPORTS_DIR)/results.md"; \
+	printf "# Bench Results\n\n" > "$$out"; \
+	for p in ratings reviews_top_tail topn_many_films doc_vs_rel; do \
+	  f=$$(ls -1t "$(REPORTS_DIR)/$${p}_"*.log "$(REPORTS_DIR)/$${p}_latest.log" 2>/dev/null | head -n 1); \
+	  if [ -n "$$f" ]; then \
+	    printf "## %s\n\n" "$$p" >> "$$out"; \
+	    printf "source: %s\n\n" "$$(basename "$$f")" >> "$$out"; \
+	    printf '%s\n\n' '----' >> "$$out"; \
+	    sed 's/\x1b\[[0-9;]*m//g' "$$f" >> "$$out"; \
+	    printf "\n\n" >> "$$out"; \
+	  fi; \
 	done; \
-	echo "Wrote $(REPORTS_DIR)/results.md"
+	echo "Wrote $$out"
 
 # ---- Bench convenience pipelines ----
 bench-seed-all:
@@ -318,11 +319,9 @@ bench-seed-all:
 
 bench-run-all:
 	@mkdir -p $(REPORTS_DIR)
-	@$(MAKE) -s bench-ratings       | tee $(REPORTS_DIR)/ratings_$(TIMESTAMP).log
-	@$(MAKE) -s bench-reviews-top   | tee $(REPORTS_DIR)/reviews_top_tail_$(TIMESTAMP).log
-	@$(MAKE) -s bench-topn          | tee $(REPORTS_DIR)/topn_many_films_$(TIMESTAMP).log
-	@$(MAKE) -s bench-doc-vs-rel    | tee $(REPORTS_DIR)/doc_vs_rel_$(TIMESTAMP).log
-	@echo "all scenarios done"
+	@$(MAKE) -s bench-ratings     | tee $(REPORTS_DIR)/ratings_$(TIMESTAMP).log
+	@$(MAKE) -s bench-reviews-top | tee $(REPORTS_DIR)/reviews_top_tail_$(TIMESTAMP).log
+	@echo "core scenarios done"
 
 bench-all:
 	@$(MAKE) bench-setup
