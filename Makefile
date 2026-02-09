@@ -6,6 +6,9 @@ BENCH_COMPOSE  := infra/bench-compose.yml
 API            := api
 PORT           := 8080
 TIMESTAMP      := $(shell date +%Y%m%d_%H%M%S)
+PY=python
+BASE_URL?=http://localhost:8080
+USER_HEADER?=X-User-Id
 
 # Test DSN for pytest
 MONGO_TEST_DSN := mongodb://mongo:27017/engagement_test?replicaSet=rs0
@@ -369,3 +372,52 @@ smoke-bench:
 	@docker exec bench_postgres psql -U bench -d bench -c "SELECT 1" >/dev/null 2>&1 || (echo "pg query failed" && exit 1)
 	@docker exec bench_mongo mongosh --quiet --eval "db.runCommand({ping:1}).ok" | grep -q '^1$$' || (echo "mongo ping failed" && exit 1)
 	@echo "smoke-bench ok"
+
+health:
+	curl -s http://localhost:8080/health | jq .
+
+ready:
+	curl -s http://localhost:8080/ready | jq .
+
+uuid:
+	@$(PY) -c "import uuid; print(uuid.uuid4())"
+
+
+demo:
+	@USER_ID=$$($(PY) -c "import uuid; print(uuid.uuid4())"); \
+	FILM_ID=$$($(PY) -c "import uuid; print(uuid.uuid4())"); \
+	echo "User: $$USER_ID"; \
+	echo "Film: $$FILM_ID"; \
+	echo ""; \
+	echo "1) PUT rating=8"; \
+	curl -s -X PUT "$(BASE_URL)/api/v1/ratings/$$FILM_ID?score=8" \
+	  -H "$(USER_HEADER): $$USER_ID"; \
+	echo ""; \
+	echo "2) PUT like=+1"; \
+	curl -s -X PUT "$(BASE_URL)/api/v1/likes/$$FILM_ID" \
+	  -H "Content-Type: application/json" \
+	  -H "$(USER_HEADER): $$USER_ID" \
+	  -d "{\"value\": 1}" -i | head -n 1; \
+	echo "2.1) GET film stats after like"; \
+    curl -s "$(BASE_URL)/api/v1/film-stats/$$FILM_ID"; \
+    echo ""; \
+	echo "3) PUT bookmark"; \
+	curl -s -X PUT "$(BASE_URL)/api/v1/bookmarks/$$FILM_ID" \
+	  -H "$(USER_HEADER): $$USER_ID"; \
+	echo ""; \
+	echo "4) POST review"; \
+	REVIEW_ID=$$(curl -s -X POST "$(BASE_URL)/api/v1/reviews" \
+	  -H "Content-Type: application/json" \
+	  -H "$(USER_HEADER): $$USER_ID" \
+	  -d "{\"film_id\":\"$$FILM_ID\",\"text\":\"Solid movie. Demo review.\"}" \
+	  | $(PY) -c "import sys,json; print(json.load(sys.stdin)['review_id'])"); \
+	echo "Review: $$REVIEW_ID"; \
+	echo "5) Vote review up"; \
+	curl -s -X POST "$(BASE_URL)/api/v1/reviews/$$REVIEW_ID/vote" \
+	  -H "Content-Type: application/json" \
+	  -H "$(USER_HEADER): $$USER_ID" \
+	  -d "{\"value\": \"up\"}"; \
+	echo ""; \
+	echo "6) GET film stats (should reflect rating/like/review/vote)"; \
+	curl -s "$(BASE_URL)/api/v1/film-stats/$$FILM_ID"; \
+	echo ""
