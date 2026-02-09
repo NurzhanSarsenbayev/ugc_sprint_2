@@ -10,11 +10,15 @@ services:
       - bench_mongo_data:/data/db
       - ../scripts:/scripts:ro
     healthcheck:
-      test: [ "CMD-SHELL", "mongosh --quiet --eval 'JSON.stringify(db.hello().isWritablePrimary)' | grep -q true" ]
-      start_period: 10s
+      test:
+        [
+          "CMD-SHELL",
+          "mongosh --quiet --eval \"try { quit(db.hello().isWritablePrimary ? 0 : 1) } catch (e) { quit(1) }\""
+        ]
+      start_period: 30s
       interval: 5s
       timeout: 5s
-      retries: 30
+      retries: 60
 
   # --- PostgreSQL (benchmarks) ---
   postgres:

@@ -1,125 +1,170 @@
-# Storage Benchmark: MongoDB vs PostgreSQL
+# Storage Benchmark Research (MongoDB vs PostgreSQL)
 
-This document describes a practical comparison between MongoDB and PostgreSQL
-for a write-heavy User Generated Content (UGC) workload.
+This document presents a reproducible benchmark used to evaluate storage options
+for the UGC (Engagement) service workload.
 
-The goal is not to declare a universal winner,
-but to understand trade-offs in real-world backend scenarios.
+The goal is not to declare a "winner", but to understand trade-offs under a realistic workload:
+- write-heavy operations (ratings)
+- read-heavy access (FilmStats-like queries)
+- top-N queries (reviews with votes)
+- aggregation per film_id
 
----
-
-## Motivation
-
-User interaction systems (likes, ratings, reviews, bookmarks)
-typically require:
-
-- High-volume writes
-- Low-latency updates
-- Aggregation queries (e.g. average rating, counters)
-- Horizontal scalability potential
-
-This benchmark evaluates how MongoDB and PostgreSQL behave
-under these constraints.
+All tests were executed locally using Docker Compose.
 
 ---
 
-## Workload Description
+## Environment
 
-The benchmark simulates a UGC system with:
+- MongoDB 7.0 (ReplicaSet, single node)
+- PostgreSQL 16
+- Python 3.11 benchmark runner
+- Docker Desktop (local environment)
+- Dataset: 1,000,000 ratings
+- OPS per scenario: 20,000
+- Concurrency: 20
 
-- Random user interactions
-- Repeated writes per user
-- Aggregation queries per content item
-- Concurrent access patterns
+Run commands:
 
-Entities involved:
+```bash
+make bench-all
+make bench-report
+````
 
-- Likes
-- Ratings
-- Reviews
-- Film statistics (aggregated counters)
+Optional (long-running scenarios):
 
----
-
-## Methodology
-
-- Local Docker-based environment
-- Indexed collections / tables
-- Synthetic dataset generation
-- Batched write operations
-- Read-heavy aggregation queries
-
-Benchmark tooling is available under:
-
-```
-
-scripts/bench/
-
-```
-
-The environment can be reproduced using:
-
-```
-
-make bench
-
+```bash
+make bench-run-extended
+make bench-report
 ```
 
 ---
 
-## Observations
+## Dataset Seeding Performance
 
-### Write Performance
+Ratings dataset size: **1,000,000**
 
-MongoDB demonstrated:
+| Storage    | Time   | Throughput        |
+| ---------- | ------ | ----------------- |
+| MongoDB    | 32.5 s | ~30,800 docs/sec  |
+| PostgreSQL | 6.7 s  | ~149,200 rows/sec |
 
-- Lower write latency under high concurrency
-- Flexible schema advantages for UGC workloads
+Observation:
 
-PostgreSQL demonstrated:
-
-- Strong consistency guarantees
-- Predictable transactional behavior
-
----
-
-### Aggregation Queries
-
-PostgreSQL:
-
-- Efficient with proper indexing
-- Stable query planner performance
-
-MongoDB:
-
-- Fast aggregation pipelines
-- Good performance for document-based grouping
+* PostgreSQL bulk insert is significantly faster in this setup.
+* MongoDB write throughput is lower but still within acceptable UGC ingestion range.
 
 ---
 
-## Trade-offs
+## Workload 1 — Ratings (Upsert + Get + Aggregation)
 
-### MongoDB Strengths
-- Flexible schema
-- High write throughput
-- Natural fit for document-style UGC
+OPS=20,000
+CONCURRENCY=20
 
-### PostgreSQL Strengths
-- Mature transactional model
-- Strong relational guarantees
-- Better for complex relational joins
+### MongoDB
+
+* upsert p95: **19.03 ms**
+* get p95: **16.15 ms**
+* aggregation p95: **18.50 ms**
+* total p95: **46.62 ms**
+
+### PostgreSQL
+
+* upsert p95: **0.80 ms**
+* get p95: **0.21 ms**
+* aggregation p95: **0.20 ms**
+* total p95: **1.16 ms**
+
+### Observation
+
+In this local setup:
+
+* PostgreSQL significantly outperforms MongoDB in raw latency.
+* MongoDB latency remains stable but higher due to document model overhead and driver/network cost.
+
+Important: this benchmark runs inside a single-node Docker environment.
+Distributed deployment characteristics may differ.
+
+---
+
+## Workload 2 — Reviews (Top-20 + Last-5 Votes)
+
+OPS=20,000
+CONCURRENCY=20
+
+### MongoDB
+
+* query p95: **21.58 ms**
+
+### PostgreSQL
+
+* query p95: **16.28 ms**
+
+### Observation
+
+For structured, relational-style queries:
+
+* PostgreSQL shows lower latency.
+* MongoDB remains within acceptable response range for UGC read workloads.
+
+---
+
+## Interpretation & Architectural Implications
+
+This benchmark demonstrates:
+
+1. PostgreSQL provides extremely low latency for indexed relational queries.
+2. MongoDB shows higher per-operation latency but maintains predictable performance.
+3. For pure performance under this workload, PostgreSQL is faster.
+
+However, storage decision is not based on raw latency alone.
+
+UGC systems typically require:
+
+* flexible schema evolution
+* denormalized read models
+* simpler horizontal scaling
+* high write tolerance
+* decoupling from strict relational constraints
+
+MongoDB remains suitable when:
+
+* document-based modeling simplifies API logic
+* joins can be avoided by design
+* read models are embedded
+* write scaling is prioritized
+
+PostgreSQL remains suitable when:
+
+* strong relational integrity is required
+* complex joins dominate workload
+* predictable low-latency queries are critical
+
+---
+
+## Limitations
+
+* Single-node local Docker environment
+* No network latency simulation
+* No horizontal scaling
+* No replication lag simulation
+* No production-level tuning
+
+This benchmark should be interpreted as a baseline comparison,
+not as a definitive production performance study.
 
 ---
 
 ## Conclusion
 
-For write-heavy UGC workloads with flexible schema needs,
-MongoDB is a practical and efficient primary storage choice.
+The benchmark confirms that:
 
-PostgreSQL remains a strong alternative when strict relational
-constraints and transactional integrity are primary concerns.
+* PostgreSQL outperforms MongoDB in raw local latency.
+* MongoDB remains viable for UGC workloads with acceptable performance.
+* Storage selection should consider data model flexibility and scaling strategy,
+  not only microbenchmark latency.
 
-The final architecture in this project uses MongoDB
-as the primary storage engine,
-with PostgreSQL included for benchmarking and comparison purposes.
-```
+The UGC service storage decision should align with architectural goals,
+not solely with isolated latency measurements.
+
+This benchmark demonstrates that raw latency alone does not dictate storage choice.
+The UGC service emphasizes schema flexibility and document-based modeling.
