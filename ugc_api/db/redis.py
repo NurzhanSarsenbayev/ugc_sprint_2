@@ -1,9 +1,9 @@
 import json
 import logging
+from datetime import date, datetime
 from typing import Any
-from datetime import datetime, date
-from bson import ObjectId
 
+from bson import ObjectId
 from redis.asyncio import Redis
 
 from ugc_api.core.config import settings
@@ -11,6 +11,7 @@ from ugc_api.core.config import settings
 log = logging.getLogger(__name__)
 
 _client: Redis | None = None
+
 
 def _json_default(obj: object):
     if isinstance(obj, (datetime, date)):
@@ -20,6 +21,7 @@ def _json_default(obj: object):
     if isinstance(obj, ObjectId):
         return str(obj)
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
 
 def _client_instance() -> Redis:
     global _client

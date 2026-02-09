@@ -10,8 +10,10 @@ from ugc_api.core.config import settings
 from ugc_api.db.redis import cache_del, cache_get_json, cache_set_json
 from ugc_api.services.repositories.film_stats_repo import FilmStatsRepo
 
+
 def _cache_key(film_id: str) -> str:
     return f"filmstats:{film_id}"
+
 
 class FilmStatsService:
     """Manages film statistics for likes, ratings, and reviews."""

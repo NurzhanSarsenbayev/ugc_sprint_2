@@ -21,6 +21,7 @@ def include_debug_routes(app):
     if str(settings.sentry_test_enabled).lower() in {"1", "true", "yes"}:
         app.include_router(router)
 
+
 @router.get("/debug/cache/filmstats/{film_id}")
 async def debug_filmstats_cache(film_id: str):
     key = f"filmstats:{film_id}"
