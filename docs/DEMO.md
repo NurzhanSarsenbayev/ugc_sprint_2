@@ -1,39 +1,45 @@
 # Demo
 
-This demo validates the full request -> storage -> aggregation pipeline.
+This demo shows the main UGC flows end-to-end (ratings, likes, bookmarks, reviews) and verifies that
+**FilmStats aggregates are updated**.
 
----
+## Prerequisites
 
-## 1. Start the stack
+- Docker + Docker Compose
+- Make
+
+## Run
 
 ```bash
 cp infra/.env.sample infra/.env
 make up
-```
-API will be available at:
-
-http://localhost:8080/docs
-
-## 2. Create a rating
-```bash
-curl -X PUT "http://localhost:8080/api/v1/ratings/22222222-2222-2222-2222-222222222222?score=8" \
-  -H "X-User-Id: 11111111-1111-1111-1111-111111111111"
+make ready
+make demo
+make down
 ```
 
-## 3. Retrieve user rating
-```bash
-curl -X GET "http://localhost:8080/api/v1/ratings/22222222-2222-2222-2222-222222222222" \
-  -H "X-User-Id: 11111111-1111-1111-1111-111111111111"
-```
+## What the demo does
 
-## 4. Verify aggregated film statistics
-```bash
-curl http://localhost:8080/api/v1/film-stats/22222222-2222-2222-2222-222222222222
-```
-You should see updated counters and avg_rating.
+`make demo` will:
 
-## 5. Run automated tests
-```bash
-make test
-```
-Expected result: all tests passing with 90%+ coverage.
+1. Generate random `user_id` and `film_id`
+2. Put a rating (`score=8`)
+3. Put a like (`value=+1`)
+4. Fetch FilmStats and show that likes/ratings changed
+5. Add a bookmark
+6. Create a review
+7. Upvote the review
+8. Fetch FilmStats again and show the updated aggregates
+
+## Expected output (example)
+
+You should see something similar to:
+
+* `PUT rating=8` returns JSON with `film_id` and `score`
+* `PUT like=+1` returns `HTTP/1.1 204 No Content` (success without body)
+* FilmStats after like shows `likes: 1`, `ratings_count: 1`
+* Review creation prints `Review: <review_id>`
+* Vote returns `{"ok": true, "applied": true}`
+* Final FilmStats shows `reviews_count: 1`, `votes_up: 1`
+
+If `make ready` returns `{"status":"ready"}` and `make demo` completes, the project is working correctly.

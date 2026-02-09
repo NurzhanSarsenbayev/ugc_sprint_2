@@ -79,6 +79,16 @@ Run tests:
 ```bash
 make test
 ```
+## Quick demo (2–5 minutes)
+
+```bash
+cp infra/.env.sample infra/.env
+make up
+make ready
+make demo
+```
+
+See docs/DEMO.md for details.
 
 ---
 
