@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 
+from ugc_api.db.redis import redis_ping
 from ugc_api.dependencies import get_db
 
-from ugc_api.db.redis import redis_ping
 router = APIRouter(tags=["readiness"])
 
 
