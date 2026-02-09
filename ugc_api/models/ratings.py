@@ -10,7 +10,7 @@ class RatingPutResponse(BaseModel):
 class RatingGetResponse(BaseModel):
     film_id: str
     user_id: str
-    score: Optional[int]  # None если нет оценки
+    score: Optional[int]
 
 
 class FilmStatsResponse(BaseModel):

@@ -1,5 +1,5 @@
 services:
-  # --- MongoDB для бенчей ---
+  # --- MongoDB (benchmarks) ---
   mongo:
     image: mongo:7.0
     container_name: bench_mongo
@@ -16,7 +16,7 @@ services:
       timeout: 5s
       retries: 30
 
-  # --- PostgreSQL для бенчей ---
+  # --- PostgreSQL (benchmarks) ---
   postgres:
     image: postgres:16
     container_name: bench_postgres
@@ -34,7 +34,7 @@ services:
       timeout: 5s
       retries: 20
 
-  # --- Runner для скриптов бенчей/сидов ---
+  # --- Runner for benchmark/seed scripts ---
   bench:
     build:
       context: ..
@@ -43,7 +43,7 @@ services:
     container_name: bench_runner
     working_dir: /app
     volumes:
-      - ../scripts:/app/scripts:rw   # код монтируем, зависимости уже в образе
+      - ../scripts:/app/scripts:rw   # Mount code; dependencies are already baked into the image
     depends_on:
       mongo:
         condition: service_healthy
@@ -57,6 +57,7 @@ services:
       CSV_BATCH: 100000
     command: >
       bash -lc "python -V && echo 'bench ready'"
+
 volumes:
   bench_mongo_data:
   bench_pg_data:

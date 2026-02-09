@@ -1,8 +1,9 @@
 import pytest
-from ugc_api.dependencies import user_id_header, get_db
-from ugc_api.db.mongo import get_mongo_db
-from motor.motor_asyncio import AsyncIOMotorDatabase
 from fastapi import HTTPException
+from motor.motor_asyncio import AsyncIOMotorDatabase
+
+from ugc_api.db.mongo import get_mongo_db
+from ugc_api.dependencies import get_db, user_id_header
 
 
 def test_user_id_header_invalid_returns_422():
@@ -12,15 +13,14 @@ def test_user_id_header_invalid_returns_422():
 
 
 async def test_missing_user_id_header_returns_422_on_endpoint(client):
-    # любой эндпоинт с Depends(user_id_header), напр. bookmarks.put
-    r = await client.put(
-        "/api/v1/bookmarks/00000000-0000-0000-0000-000000000000")
+    # Any endpoint that uses Depends(user_id_header), e.g. bookmarks.put
+    r = await client.put("/api/v1/bookmarks/00000000-0000-0000-0000-000000000000")
     assert r.status_code == 422
 
 
 async def test_get_db_returns_database_instance():
     db = await get_db()
-    # проверим тип и возможность дернуть список коллекций (не падает)
+    # Check the type and that listing collections works (no exception)
     assert isinstance(db, AsyncIOMotorDatabase)
     _ = await db.list_collection_names()
 
@@ -28,7 +28,7 @@ async def test_get_db_returns_database_instance():
 async def test_get_mongo_db_returns_same_database_instance():
     db1 = await get_mongo_db()
     db2 = await get_mongo_db()
-    # тот же объект БД (один и тот же singleton client/database)
+    # Same DB object (same singleton client/database)
     assert db1.name == db2.name
-    # и можно получить список коллекций (проверка работоспособности)
+    # And listing collections works (sanity check)
     _ = await db1.list_collection_names()

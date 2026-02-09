@@ -10,8 +10,7 @@ class BookmarksRepo:
 
     async def upsert(self, user_id: str, film_id: str) -> bool:
         """
-        Возвращает created: True,
-        если вставили новую запись (upserted_id != None).
+        Return True if a new bookmark was created (upserted_id is not None).
         """
         now = datetime.now(timezone.utc)
         res = await self.col.update_one(

@@ -5,9 +5,11 @@ from fastapi import HTTPException
 
 def handle_runtime_errors(mapping: dict[str, HTTPStatus]):
     """
-    Переводит RuntimeError с «текстовыми кодами» в HTTPException.
-    Пример mapping: {"review_not_found": 404,
-     "review_not_found_or_not_author": 404}
+    Convert RuntimeError messages into HTTPException
+    based on a provided mapping.
+
+    Example:
+        {"review_not_found": HTTPStatus.NOT_FOUND}
     """
     def decorator(fn):
         @wraps(fn)
@@ -19,16 +21,20 @@ def handle_runtime_errors(mapping: dict[str, HTTPStatus]):
                 for key, status in mapping.items():
                     if key in msg:
                         raise HTTPException(status_code=status, detail=key)
-                # нераспознанное — 500
+                # unknown error -> 500
                 raise HTTPException(
                     status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                    detail="internal_error")
+                    detail="internal_error",
+                )
         return wrapper
     return decorator
 
 
 def not_found_if_none(value, detail: str = "review_not_found"):
-    """Удобный helper: если результат None — бросаем 404."""
+    """Raise 404 if value is None."""
     if value is None:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=detail)
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=detail,
+        )
     return value

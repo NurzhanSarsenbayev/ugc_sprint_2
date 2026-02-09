@@ -7,15 +7,14 @@ import statistics as st
 import psycopg
 from motor.motor_asyncio import AsyncIOMotorClient
 
-# Параметры
 OPS = int(os.getenv("OPS", "200"))
-K = int(os.getenv("K", "100"))          # число фильмов в запросе
+K = int(os.getenv("K", "100"))  # number of films per query
 TOPN = int(os.getenv("TOPN", "3"))
 
 MONGO_DSN = os.getenv("MONGO_DSN")
 PG_DSN = os.getenv("PG_DSN")
 
-# Форсим построчный вывод
+# Force line-buffered stdout (useful in Docker/CI logs)
 try:
     sys.stdout.reconfigure(line_buffering=True)
 except Exception:
@@ -23,7 +22,7 @@ except Exception:
 
 
 async def pick_film_ids_mongo():
-    """Лёгкая выборка: distinct без тяжёлого $group/$match."""
+    """Fast path: distinct film_ids (avoid heavy aggregation)."""
     cli = AsyncIOMotorClient(MONGO_DSN)
     col = cli.get_default_database()["bench_reviews"]
     ids = await col.distinct("film_id")
@@ -33,7 +32,7 @@ async def pick_film_ids_mongo():
 
 
 async def query_mongo(film_ids):
-    """Агрегация для топ-N по каждому фильму."""
+    """Aggregation: top-N reviews per film."""
     cli = AsyncIOMotorClient(MONGO_DSN)
     col = cli.get_default_database()["bench_reviews"]
     pipeline = [
@@ -53,14 +52,14 @@ async def query_mongo(film_ids):
         {"$project": {"_id": 0, "film_id": "$_id", "top": 1}}
     ]
     t0 = time.perf_counter()
-    # maxTimeMS чтобы не зависало; allowDiskUse на всякий
+    # maxTimeMS prevents hanging; allowDiskUse is a safety net
     cursor = col.aggregate(pipeline, allowDiskUse=True, maxTimeMS=15000)
     _ = [d async for d in cursor]
     return (time.perf_counter() - t0) * 1000.0
 
 
 def query_pg(conn, film_ids):
-    """Аналог в PG по нормализованной таблице bench_reviews."""
+    """Postgres equivalent using normalized bench_reviews table."""
     if not film_ids:
         raise ValueError("film_ids is empty. Seed data or reduce K/TOPN.")
 
@@ -88,13 +87,13 @@ def query_pg(conn, film_ids):
 async def main():
     film_ids = await pick_film_ids_mongo()
     if not film_ids:
-        print("⚠️  No film_ids in Mongo;"
+        print("No film_ids in Mongo;"
               " nothing to query. (seed more or lower K/TOPN)")
         return
     else:
         print(f"Using {len(film_ids)} film_ids from Mongo")
 
-    # Прогрев
+    # Warm-up
     _ = await query_mongo(film_ids)
     with psycopg.connect(PG_DSN) as conn:
         _ = query_pg(conn, film_ids)
@@ -106,13 +105,14 @@ async def main():
             pg_ms.append(query_pg(conn, film_ids))
 
     def pr(name, arr):
-        # p95 через квантиль
+        # p95 via quantiles
         print(f"{name:6s} p50={st.median(arr):6.2f} ms,"
               f" p95={st.quantiles(arr, n=100)[94]:6.2f} ms, n={len(arr)}")
 
     print("== TopN per many films ==")
     pr("mongo", mongo_ms)
     pr("pg", pg_ms)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

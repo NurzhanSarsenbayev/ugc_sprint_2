@@ -23,7 +23,7 @@ async def test_review_update_forbidden_for_stranger_returns_404(client):
     r = await client.patch(f"{BASE}/{rid}",
                            json={"text": "x"},
                            headers=uid_header(stranger))
-    assert r.status_code == 404  # «не найдено или не автор»
+    assert r.status_code == 404   # not found or not the author
 
 
 async def test_review_delete_by_author_then_get_returns_404(client):
@@ -60,7 +60,7 @@ async def test_reviews_list_sorted_top_orders_by_votes_up_then_created_desc(
                                        "text": "b"},
                            headers=uid_header(u1))
     rid1, rid2 = r1.json()["review_id"], r2.json()["review_id"]
-    # прокачаем второй отзыв (votes.up = 1)
+    # boost the second review (votes.up = 1)
     await client.post(f"{BASE}/{rid2}/vote",
                       json={"value": "up"},
                       headers=uid_header(u2))
@@ -68,7 +68,7 @@ async def test_reviews_list_sorted_top_orders_by_votes_up_then_created_desc(
     r = await client.get(f"{BASE}/films/{film}?limit=10&offset=0&sort=top")
     items = r.json()["items"]
     ids = [i["review_id"] for i in items]
-    # ожидаем, что rid2 (больше up) стоит раньше rid1
+    # expect rid2 (more upvotes) to come before rid1
     assert ids.index(rid2) < ids.index(rid1)
 
 
@@ -96,7 +96,7 @@ async def test_review_votes_up_down_unvote_updates_stats(client):
 
 
 async def test_get_nonexistent_review_returns_404(client):
-    # валидный, но несуществующий ObjectId
+    # valid but nonexistent ObjectId
     rnd = str(ObjectId())
     r = await client.get(f"{BASE}/{rnd}")
     assert r.status_code == 404

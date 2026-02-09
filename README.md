@@ -4,9 +4,8 @@ A backend service for collecting and aggregating user-generated content
 with an explicit separation between write-heavy transactional workloads
 and read-heavy analytical workloads.
 
-Example domain: online cinema platform.  
-The design is domain-agnostic and applicable to any system
-that processes user interactions (e-commerce, marketplaces, media apps).
+Example use case: online cinema platform (likes, ratings, reviews).
+The architecture is domain-agnostic and can be reused in any interaction-driven system.
 
 ---
 
@@ -34,22 +33,25 @@ but architectural clarity and operational stability.
 
 ## Architecture Overview
 
-- FastAPI — public HTTP API
-- MongoDB — primary source of truth for UGC
-- Redis — auxiliary optimization layer
-- PostgreSQL — storage benchmark comparison
-- Docker Compose — reproducible local environment
-- CI + test suite — quality gate (90%+ coverage)
+This service is designed around workload separation:
+
+- **MongoDB** – write-optimized storage for user interactions
+- **FilmStats aggregation layer** – maintains counters and derived metrics
+- **Redis** – optional performance optimization layer
+- **PostgreSQL** – reference storage used for benchmarking
+- **FastAPI** – public HTTP API
+- **Docker Compose** – fully reproducible environment
+- **CI (GitHub Actions)** – automated quality gate (90%+ coverage)
 
 ---
 
 ## Data Flow
 
 ### Write Path
-Client → API → MongoDB
+Client -> API -> MongoDB
 
 ### Read / Aggregation Path
-MongoDB → FilmStats aggregation → API response
+MongoDB -> FilmStats aggregation -> API response
 
 ### Storage Benchmark
 MongoDB vs PostgreSQL comparison  
@@ -63,6 +65,11 @@ See `docs/research/STORAGE_BENCHMARK.md` for a practical storage comparison.
 cp .env.sample .env
 make up
 ````
+
+Health check:
+
+http://localhost:8080/health  
+http://localhost:8080/ready
 
 Swagger:
 [http://localhost:8080/docs](http://localhost:8080/docs)
@@ -80,7 +87,7 @@ make test
 ```
 ugc_api/        FastAPI application
 infra/          Docker configuration
-scripts/        Index and benchmark utilities
+scripts/        Benchmark and index utilities
 tests/          Test suite
 docs/           Documentation
 ```

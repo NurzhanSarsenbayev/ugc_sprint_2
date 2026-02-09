@@ -1,5 +1,5 @@
-# все переменные берутся из infra/.env
-# например: APP_PORT, MONGO_DSN, POSTGRES_USER и т.п.
+# All variables are loaded from infra/.env
+# e.g. APP_PORT, MONGO_DSN, POSTGRES_USER, etc.
 
 services:
   api:
@@ -39,7 +39,7 @@ services:
       retries: 20
       start_period: 10s
 
-  # одноразовый helper, чтобы инициировать replica set
+  # One-shot helper to initiate the replica set
   mongo-rs-init:
     image: mongo:7.0
     depends_on:
@@ -82,7 +82,7 @@ services:
     environment:
       - discovery.type=single-node
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
-      # для локалки, чтобы не возиться с логином/паролем
+       # Local dev: disable security to avoid auth setup
       - xpack.security.enabled=false
     ports:
       - "9200:9200"
@@ -129,7 +129,7 @@ services:
     image: docker.elastic.co/beats/filebeat:8.15.0
     container_name: engagement_filebeat
     user: root
-    command: [ "-e", "--strict.perms=false" ]   # <-- лог в stdout + игнор прав
+    command: [ "-e", "--strict.perms=false" ]   # stdout logs + ignore strict perms
     volumes:
       - ./elk/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro

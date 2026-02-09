@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.10', '3.11', '3.12']
+        python-version: ["3.10", "3.11", "3.12"]
 
     steps:
       - uses: actions/checkout@v4
@@ -27,21 +27,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           if [ -f requirements.dev.txt ]; then pip install -r requirements.dev.txt; fi
-          # на всякий случай — то, что обычно нужно под ТЗ
-          pip install mypy flake8 wemake-python-styleguide flake8-html ruff
+          mkdir -p reports/flake8 reports/mypy
 
-      - name: Ruff (fast)
-        run: ruff check . || true
+      - name: Ruff
+        run: ruff check .
 
-      - name: Flake8 (wemake)
-        run: flake8 . || true
+      - name: Flake8 (wemake) + HTML report
+        run: |
+          flake8 . --format=html --htmldir=reports/flake8
 
-      - name: Mypy
-        run: mypy . || true
+      - name: Mypy + HTML report (non-blocking)
+        continue-on-error: true
+        run: |
+          mypy . --html-report reports/mypy
 
-#      - name: Pytest (non-blocking)
-#        run: pytest -q || true
-
+      - name: Pytest
+        run: pytest -q
 
       - name: Upload reports
         uses: actions/upload-artifact@v4
@@ -57,8 +58,8 @@ jobs:
           to: ${{ secrets.TELEGRAM_TO }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           message: |
-            ✅ CI PASSED — ${{ github.repository }} @ ${{ github.ref_name }}
-            Python ${{ matrix.python-version }}
+            CI PASSED - ${{ github.repository }} @ ${{ github.ref_name }}
+            Python: ${{ matrix.python-version }}
             Commit: ${{ github.sha }}
             Actor: ${{ github.actor }}
 
@@ -69,7 +70,7 @@ jobs:
           to: ${{ secrets.TELEGRAM_TO }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           message: |
-            ❌ CI FAILED — ${{ github.repository }} @ ${{ github.ref_name }}
-            Python ${{ matrix.python-version }}
+            CI FAILED - ${{ github.repository }} @ ${{ github.ref_name }}
+            Python: ${{ matrix.python-version }}
             Commit: ${{ github.sha }}
             Actor: ${{ github.actor }}

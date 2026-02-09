@@ -73,7 +73,6 @@ async def update_review_text(
                                review_id=review_id,
                                text=body.text)
     if not ok:
-        # автор не совпал или не найдена рецензия
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
                             detail="review_not_found_or_not_author")
     return ReviewUpdateResponse(ok=True)
