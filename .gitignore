@@ -20,3 +20,18 @@ venv/
 Thumbs.db
 
 debug_bench_snapshot.*
+
+# Local env (infra)
+infra/.env
+
+# Reports / artifacts
+reports/
+logs/
+htmlcov/
+.coverage
+coverage.xml
+
+# Tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

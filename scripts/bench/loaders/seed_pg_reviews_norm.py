@@ -8,7 +8,6 @@ import uuid
 
 import psycopg
 
-
 TOTAL = int(os.getenv("TOTAL", "500_000"))
 FILMS = int(os.getenv("FILMS", "5_000"))
 
@@ -60,11 +59,7 @@ def main() -> None:
                     last_film_id = uuid.uuid4()
 
                 film_id = last_film_id
-                badge = (
-                    random.choice(["critic", "verified"])
-                    if random.random() < 0.3
-                    else None
-                )
+                badge = random.choice(["critic", "verified"]) if random.random() < 0.3 else None
 
                 created_at = now - datetime.timedelta(
                     seconds=random.randint(0, 3600 * 24 * 7),
@@ -72,15 +67,15 @@ def main() -> None:
 
                 rows.append(
                     (
-                        uuid.uuid4(),         # id
-                        film_id,              # film_id
-                        uuid.uuid4(),         # user_id
-                        "lorem",              # text
-                        created_at,           # created_at
+                        uuid.uuid4(),  # id
+                        film_id,  # film_id
+                        uuid.uuid4(),  # user_id
+                        "lorem",  # text
+                        created_at,  # created_at
                         random.randint(0, 1000),  # hot
-                        0,                    # up_cnt
-                        0,                    # down_cnt
-                        badge,                # badge
+                        0,  # up_cnt
+                        0,  # down_cnt
+                        badge,  # badge
                     ),
                 )
 

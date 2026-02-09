@@ -7,7 +7,7 @@ This demo validates the full request -> storage -> aggregation pipeline.
 ## 1. Start the stack
 
 ```bash
-cp .env.sample .env
+cp infra/.env.sample infra/.env
 make up
 ```
 API will be available at:

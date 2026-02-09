@@ -20,9 +20,9 @@ from ugc_api.services.repositories.review_votes_repo import ReviewVotesRepo
 from ugc_api.services.repositories.reviews_repo import ReviewsRepo
 
 # Reused string literals to satisfy WPS226:
-VOTES_KEY = 'votes'
-UP = 'up'
-DOWN = 'down'
+VOTES_KEY = "votes"
+UP = "up"
+DOWN = "down"
 
 
 class ReviewsService:  # noqa: WPS214 (methods count)
@@ -33,7 +33,7 @@ class ReviewsService:  # noqa: WPS214 (methods count)
 
     def __init__(self, db, stats: Optional[FilmStatsService] = None) -> None:
         """Initialize service with db adapter
-         and optional film stats service."""
+        and optional film stats service."""
         self.repo = ReviewsRepo(db)
         self.votes_repo = ReviewVotesRepo(db)
         self.stats = stats
@@ -48,12 +48,10 @@ class ReviewsService:  # noqa: WPS214 (methods count)
                 yield session
 
     @staticmethod
-    def _vote_delta(
-            old: Optional[str],
-            new: Optional[str]
-    ) -> tuple[Optional[int], Optional[int]]:
+    def _vote_delta(old: Optional[str], new: Optional[str]) -> tuple[Optional[int], Optional[int]]:
         """Map old/new vote ('up'/'down'/None)
-         into numeric deltas (old, new)."""
+        into numeric deltas (old, new)."""
+
         def map_vote(val: Optional[str]) -> Optional[int]:
             if val == UP:
                 return 1
@@ -65,10 +63,7 @@ class ReviewsService:  # noqa: WPS214 (methods count)
 
     # ---------- CREATE ----------
 
-    async def create_review(
-            self,
-            user_id: str,
-            data: ReviewCreateRequest) -> ReviewCreateResponse:
+    async def create_review(self, user_id: str, data: ReviewCreateRequest) -> ReviewCreateResponse:
         """Create new review and update film stats (optional)."""
         try:
             review_id = await self.repo.insert(
@@ -80,9 +75,7 @@ class ReviewsService:  # noqa: WPS214 (methods count)
                 await self.stats.apply_review_created(data.film_id)
             return ReviewCreateResponse(review_id=review_id)
         except PyMongoError as error:
-            raise RuntimeError(
-                f'mongo_review_create_error: {error}'
-            ) from error
+            raise RuntimeError(f"mongo_review_create_error: {error}") from error
 
     # ---------- GET ONE ----------
 
@@ -93,16 +86,16 @@ class ReviewsService:  # noqa: WPS214 (methods count)
             if not doc:
                 return None
             return ReviewItem(
-                review_id=str(doc['_id']),
-                film_id=doc['film_id'],
-                user_id=doc['user_id'],
-                text=doc['text'],
+                review_id=str(doc["_id"]),
+                film_id=doc["film_id"],
+                user_id=doc["user_id"],
+                text=doc["text"],
                 up=int(doc.get(VOTES_KEY, {}).get(UP, 0)),
                 down=int(doc.get(VOTES_KEY, {}).get(DOWN, 0)),
-                created_at=doc['created_at'],
+                created_at=doc["created_at"],
             )
         except PyMongoError as error:
-            raise RuntimeError(f'mongo_review_get_error: {error}') from error
+            raise RuntimeError(f"mongo_review_get_error: {error}") from error
 
     # ---------- LIST ----------
 
@@ -111,7 +104,7 @@ class ReviewsService:  # noqa: WPS214 (methods count)
         film_id: str,
         limit: int = 20,
         offset: int = 0,
-        sort: str = 'new',
+        sort: str = "new",
     ) -> ReviewListResponse:
         """List reviews for a film with pagination and sorting."""
         try:
@@ -123,35 +116,29 @@ class ReviewsService:  # noqa: WPS214 (methods count)
             )
             items: List[ReviewItem] = [
                 ReviewItem(
-                    review_id=str(doc['_id']),
-                    film_id=doc['film_id'],
-                    user_id=doc['user_id'],
-                    text=doc['text'],
+                    review_id=str(doc["_id"]),
+                    film_id=doc["film_id"],
+                    user_id=doc["user_id"],
+                    text=doc["text"],
                     up=int(doc.get(VOTES_KEY, {}).get(UP, 0)),
                     down=int(doc.get(VOTES_KEY, {}).get(DOWN, 0)),
-                    created_at=doc['created_at'],
+                    created_at=doc["created_at"],
                 )
                 for doc in docs
             ]
             total = await self.repo.count_by_film(film_id)
             return ReviewListResponse(items=items, total=total)
         except PyMongoError as error:
-            raise RuntimeError(f'mongo_review_list_error: {error}') from error
+            raise RuntimeError(f"mongo_review_list_error: {error}") from error
 
     # ---------- UPDATE (EDIT) ----------
 
-    async def update_text(
-            self,
-            user_id: str,
-            review_id: str,
-            text: str) -> bool:
+    async def update_text(self, user_id: str, review_id: str, text: str) -> bool:
         """Edit review text by author."""
         try:
             return await self.repo.update_text(user_id, review_id, text)
         except PyMongoError as error:
-            raise RuntimeError(
-                f'mongo_review_update_error: {error}'
-            ) from error
+            raise RuntimeError(f"mongo_review_update_error: {error}") from error
 
     # ---------- DELETE ----------
 
@@ -160,8 +147,7 @@ class ReviewsService:  # noqa: WPS214 (methods count)
         try:
             async with self._txn() as session:
                 # 1) delete all votes of the review
-                await self.votes_repo.delete_many_by_review(
-                    review_id, session=session)
+                await self.votes_repo.delete_many_by_review(review_id, session=session)
                 # 2) delete review and get its film_id
                 deleted = await self.repo.delete_and_return(
                     user_id,
@@ -171,25 +157,19 @@ class ReviewsService:  # noqa: WPS214 (methods count)
                 if not deleted:
                     return False
 
-                film_id = deleted['film_id']
+                film_id = deleted["film_id"]
                 # 3) update aggregates
                 if self.stats:
                     await self.stats.apply_review_deleted(film_id)
                 return True
         except PyMongoError as error:
-            raise RuntimeError(
-                f'mongo_review_delete_error: {error}'
-            ) from error
+            raise RuntimeError(f"mongo_review_delete_error: {error}") from error
 
     # ---------- VOTE (UP/DOWN) ----------
 
-    async def vote(
-            self,
-            user_id: str,
-            review_id: str,
-            value: VoteValue) -> ReviewVoteResponse:
+    async def vote(self, user_id: str, review_id: str, value: VoteValue) -> ReviewVoteResponse:
         """Apply vote (up/down) for a review;
-         updates counters and film stats."""
+        updates counters and film stats."""
         try:
             async with self._txn() as session:
                 old_vote = await self.votes_repo.get_user_vote(
@@ -210,7 +190,7 @@ class ReviewsService:  # noqa: WPS214 (methods count)
                     session=session,
                 )
                 if not updated:
-                    raise RuntimeError('review_not_found')
+                    raise RuntimeError("review_not_found")
 
                 # 2) upsert user vote
                 await self.votes_repo.upsert_vote(
@@ -236,14 +216,13 @@ class ReviewsService:  # noqa: WPS214 (methods count)
 
                 return ReviewVoteResponse(ok=True, applied=True)
         except PyMongoError as error:
-            raise RuntimeError(f'mongo_review_vote_error: {error}') from error
+            raise RuntimeError(f"mongo_review_vote_error: {error}") from error
 
     # ---------- UNVOTE ----------
 
-    async def unvote(
-            self, user_id: str, review_id: str) -> ReviewVoteResponse:
+    async def unvote(self, user_id: str, review_id: str) -> ReviewVoteResponse:
         """Remove user's vote from a review;
-         updates counters and film stats."""
+        updates counters and film stats."""
         try:
             async with self._txn() as session:
                 old_vote = await self.votes_repo.get_user_vote(
@@ -262,7 +241,7 @@ class ReviewsService:  # noqa: WPS214 (methods count)
                     session=session,
                 )
                 if not updated:
-                    raise RuntimeError('review_not_found')
+                    raise RuntimeError("review_not_found")
 
                 # 2) delete user vote
                 await self.votes_repo.delete_vote(
@@ -287,6 +266,4 @@ class ReviewsService:  # noqa: WPS214 (methods count)
 
                 return ReviewVoteResponse(ok=True, applied=True)
         except PyMongoError as error:
-            raise RuntimeError(
-                f'mongo_review_unvote_error: {error}'
-            ) from error
+            raise RuntimeError(f"mongo_review_unvote_error: {error}") from error

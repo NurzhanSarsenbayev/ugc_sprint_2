@@ -1,9 +1,10 @@
-import os
 import asyncio
+import os
 import random
-import time
-import sys
 import statistics as st
+import sys
+import time
+
 import psycopg
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -38,18 +39,25 @@ async def query_mongo(film_ids):
     pipeline = [
         {"$match": {"film_id": {"$in": film_ids}}},
         {"$sort": {"votes_counters.up": -1, "created_at": -1}},
-        {"$group": {
-            "_id": "$film_id",
-            "top": {"$topN": {
-                "n": TOPN,
-                "sortBy": {"votes_counters.up": -1, "created_at": -1},
-                "output": {
-                    "_id": "$_id", "user_id": "$user_id", "text": "$text",
-                    "up": "$votes_counters.up", "created_at": "$created_at"
-                }
-            }}
-        }},
-        {"$project": {"_id": 0, "film_id": "$_id", "top": 1}}
+        {
+            "$group": {
+                "_id": "$film_id",
+                "top": {
+                    "$topN": {
+                        "n": TOPN,
+                        "sortBy": {"votes_counters.up": -1, "created_at": -1},
+                        "output": {
+                            "_id": "$_id",
+                            "user_id": "$user_id",
+                            "text": "$text",
+                            "up": "$votes_counters.up",
+                            "created_at": "$created_at",
+                        },
+                    }
+                },
+            }
+        },
+        {"$project": {"_id": 0, "film_id": "$_id", "top": 1}},
     ]
     t0 = time.perf_counter()
     # maxTimeMS prevents hanging; allowDiskUse is a safety net
@@ -87,8 +95,7 @@ def query_pg(conn, film_ids):
 async def main():
     film_ids = await pick_film_ids_mongo()
     if not film_ids:
-        print("No film_ids in Mongo;"
-              " nothing to query. (seed more or lower K/TOPN)")
+        print("No film_ids in Mongo;" " nothing to query. (seed more or lower K/TOPN)")
         return
     else:
         print(f"Using {len(film_ids)} film_ids from Mongo")
@@ -106,8 +113,10 @@ async def main():
 
     def pr(name, arr):
         # p95 via quantiles
-        print(f"{name:6s} p50={st.median(arr):6.2f} ms,"
-              f" p95={st.quantiles(arr, n=100)[94]:6.2f} ms, n={len(arr)}")
+        print(
+            f"{name:6s} p50={st.median(arr):6.2f} ms,"
+            f" p95={st.quantiles(arr, n=100)[94]:6.2f} ms, n={len(arr)}"
+        )
 
     print("== TopN per many films ==")
     pr("mongo", mongo_ms)

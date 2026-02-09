@@ -8,9 +8,8 @@ import random
 import time
 import uuid
 
-from motor.motor_asyncio import AsyncIOMotorClient
 import psycopg
-
+from motor.motor_asyncio import AsyncIOMotorClient
 
 OPS = int(os.getenv("OPS", "20000"))
 CONCURRENCY = int(os.getenv("CONCURRENCY", "20"))
@@ -19,10 +18,7 @@ K_LAST = int(os.getenv("K_LAST", "20"))
 
 MONGO_DSN = os.getenv(
     "MONGO_DSN",
-    (
-        "mongodb://mongo:27017/"
-        "engagement_bench?replicaSet=rs0"
-    ),
+    ("mongodb://mongo:27017/" "engagement_bench?replicaSet=rs0"),
 )
 PG_DSN = os.getenv(
     "PG_DSN",
@@ -85,8 +81,7 @@ def pg_toggle_and_query(cur, film_id: str, user_id: str):
         )
     else:
         cur.execute(
-            "UPDATE bench_reviews "
-            "SET down_cnt = down_cnt + 1 WHERE film_id = %s",
+            "UPDATE bench_reviews " "SET down_cnt = down_cnt + 1 WHERE film_id = %s",
             (film_id,),
         )
 
@@ -113,10 +108,7 @@ async def run() -> None:
     mongo_db = mongo_client.get_default_database()
     mongo_col = mongo_db["reviews_doc"]
 
-    film_ids = [
-        d["film_id"]
-        async for d in mongo_col.find({}, {"film_id": 1}).limit(10_000)
-    ]
+    film_ids = [d["film_id"] async for d in mongo_col.find({}, {"film_id": 1}).limit(10_000)]
     assert film_ids, "seed Mongo first"
 
     pg_conn = psycopg.connect(PG_DSN, autocommit=True)

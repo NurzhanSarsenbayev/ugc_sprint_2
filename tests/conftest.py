@@ -11,9 +11,7 @@ from ugc_api.main import app
 
 @pytest.fixture(scope="session", autouse=True)
 def test_env():
-    os.environ["MONGO_DSN"] = (
-        "mongodb://mongo:27017/engagement_test?replicaSet=rs0"
-    )
+    os.environ["MONGO_DSN"] = "mongodb://mongo:27017/engagement_test?replicaSet=rs0"
     os.environ["SENTRY_DSN"] = ""  # disable Sentry
     settings.mongo_dsn = os.environ["MONGO_DSN"]
     settings.sentry_dsn = ""

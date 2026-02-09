@@ -62,7 +62,7 @@ See `docs/research/STORAGE_BENCHMARK.md` for a practical storage comparison.
 ## Quickstart
 
 ```bash
-cp .env.sample .env
+cp infra/.env.sample infra/.env
 make up
 ````
 

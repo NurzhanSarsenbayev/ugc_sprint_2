@@ -10,7 +10,6 @@ from datetime import datetime, timedelta, timezone
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
-
 TOTAL = int(os.getenv("TOTAL", "500_000"))
 FILMS = int(os.getenv("FILMS", "5_000"))  # ~100 reviews per film
 MONGO_DSN = os.getenv(
@@ -56,7 +55,8 @@ async def main() -> None:
             "film_id": film_id,
             "user_id": str(uuid.uuid4()),
             "text": "lorem",
-            "created_at": now - timedelta(
+            "created_at": now
+            - timedelta(
                 seconds=random.randint(0, 3600 * 24 * 7),
             ),
             "hot": random.randint(0, 1000),

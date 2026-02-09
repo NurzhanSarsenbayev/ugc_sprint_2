@@ -138,7 +138,21 @@ elk-restart:  ## Restart Logstash and Filebeat (after config changes)
 	@echo "ELK pipeline restarted."
 
 # ---------- Quality / Tests ----------
+
 lint:
+	python -m ruff check .
+
+lint-fix:
+	python -m ruff check . --fix
+
+format:
+	python -m ruff format .
+
+check: lint test
+
+fmt: lint-fix format
+
+lint-docker:
 	@docker compose -f $(COMPOSE) exec -T $(API) bash -lc '\
 	  flake8 ugc_api \
 	'

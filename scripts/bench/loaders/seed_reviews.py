@@ -10,9 +10,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import List
 
-from motor.motor_asyncio import AsyncIOMotorClient
 import psycopg
-
+from motor.motor_asyncio import AsyncIOMotorClient
 
 # --------------------------- settings ----------------------------------------
 
@@ -106,8 +105,7 @@ async def seed_mongo() -> None:
                 {
                     "user_id": str(uuid.uuid4()),
                     "value": random.choice(["up", "down"]),
-                    "ts": now_utc()
-                    - timedelta(seconds=random.randint(0, 60 * 60 * 24)),
+                    "ts": now_utc() - timedelta(seconds=random.randint(0, 60 * 60 * 24)),
                 },
             )
 
@@ -194,8 +192,7 @@ def seed_pg() -> None:
                         rid,
                         uuid.uuid4(),
                         random.choice(["up", "down"]),
-                        now_utc()
-                        - timedelta(seconds=random.randint(0, 60 * 60 * 24)),
+                        now_utc() - timedelta(seconds=random.randint(0, 60 * 60 * 24)),
                     ),
                 )
 

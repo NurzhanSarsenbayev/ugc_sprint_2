@@ -9,6 +9,7 @@ from ugc_api.models.bookmarks import (
     BookmarkListResponse,
     BookmarkPutResponse,
 )
+
 from .repositories.bookmarks_repo import BookmarksRepo
 
 
@@ -32,7 +33,7 @@ class BookmarksService:
             )
             return BookmarkPutResponse(ok=True, created=created)
         except PyMongoError as error:
-            raise RuntimeError(f'mongo_bookmark_add_error: {error}') from error
+            raise RuntimeError(f"mongo_bookmark_add_error: {error}") from error
 
     async def remove_bookmark(
         self,
@@ -47,8 +48,7 @@ class BookmarksService:
             )
             return BookmarkDeleteResponse(ok=True, deleted=deleted)
         except PyMongoError as error:
-            raise RuntimeError(
-                f'mongo_bookmark_remove_error: {error}') from error
+            raise RuntimeError(f"mongo_bookmark_remove_error: {error}") from error
 
     async def list_bookmarks(
         self,
@@ -64,8 +64,7 @@ class BookmarksService:
                 offset=offset,
             )
             total = await self.repo.count_by_user(user_id=user_id)
-            items = [BookmarkItem(film_id=doc['film_id']) for doc in docs]
+            items = [BookmarkItem(film_id=doc["film_id"]) for doc in docs]
             return BookmarkListResponse(items=items, total=total)
         except PyMongoError as error:
-            raise RuntimeError(
-                f'mongo_bookmark_list_error: {error}') from error
+            raise RuntimeError(f"mongo_bookmark_list_error: {error}") from error

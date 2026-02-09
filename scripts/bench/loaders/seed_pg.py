@@ -12,7 +12,6 @@ import uuid
 import psycopg
 from psycopg import sql
 
-
 PG_DSN = os.getenv(
     "PG_DSN",
     "postgresql://bench:bench@localhost:5432/bench",
@@ -39,10 +38,7 @@ def ensure_schema(conn: psycopg.Connection) -> None:
 
 def copy_csv(conn: psycopg.Connection, path: str) -> None:
     """COPY data from CSV file into ratings."""
-    copy_stmt = (
-        "COPY ratings (film_id, user_id, score) "
-        "FROM STDIN WITH (FORMAT CSV)"
-    )
+    copy_stmt = "COPY ratings (film_id, user_id, score) " "FROM STDIN WITH (FORMAT CSV)"
     with conn.cursor() as cur, open(path, "r", newline="") as f:
         cur.copy(sql.SQL(copy_stmt), f)
     conn.commit()

@@ -1,6 +1,8 @@
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
-from ugc_api.core.config import settings
 import logging
+
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+
+from ugc_api.core.config import settings
 
 _client: AsyncIOMotorClient | None = None
 
@@ -27,9 +29,7 @@ async def get_client() -> AsyncIOMotorClient:
         try:
             await _client.admin.command("ping")
         except Exception as e:
-            logging.getLogger(__name__).warning(
-                "mongo_ping_failed", extra={"err": str(e)}
-            )
+            logging.getLogger(__name__).warning("mongo_ping_failed", extra={"err": str(e)})
     return _client
 
 

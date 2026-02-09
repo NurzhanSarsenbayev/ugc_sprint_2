@@ -6,6 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from ugc_api.models.ratings import FilmStatsResponse, RatingPutResponse
 from ugc_api.services.film_stats_service import FilmStatsService
+
 from .repositories.ratings_repo import RatingsRepo
 
 
@@ -34,9 +35,7 @@ class RatingsService:
             user_id=user_id,
             film_id=film_id,
         )
-        old_score: Optional[int] = (
-            int(old_doc['score']) if old_doc and 'score' in old_doc else None
-        )
+        old_score: Optional[int] = int(old_doc["score"]) if old_doc and "score" in old_doc else None
 
         doc = await self.repo.upsert(
             user_id=user_id,
@@ -53,7 +52,7 @@ class RatingsService:
 
         return RatingPutResponse(
             film_id=film_id,
-            score=int(doc['score']),
+            score=int(doc["score"]),
         )
 
     # ---------- READ ----------
@@ -68,7 +67,7 @@ class RatingsService:
             user_id=user_id,
             film_id=film_id,
         )
-        return int(doc['score']) if doc and 'score' in doc else None
+        return int(doc["score"]) if doc and "score" in doc else None
 
     # ---------- DELETE ----------
 
@@ -82,9 +81,7 @@ class RatingsService:
             user_id=user_id,
             film_id=film_id,
         )
-        old_score: Optional[int] = (
-            int(old_doc['score']) if old_doc and 'score' in old_doc else None
-        )
+        old_score: Optional[int] = int(old_doc["score"]) if old_doc and "score" in old_doc else None
 
         await self.repo.delete(
             user_id=user_id,
@@ -102,7 +99,7 @@ class RatingsService:
 
     async def film_stats(self, film_id: str) -> FilmStatsResponse:
         """Get film stats (prefer cached stats service,
-         fallback to on-the-fly)."""
+        fallback to on-the-fly)."""
         if self.stats is not None:
             doc = await self.stats.get_stats(film_id)
             return FilmStatsResponse(**doc)

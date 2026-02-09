@@ -22,55 +22,47 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Install deps (prod+dev)
+      - name: Install dev deps (host tools)
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          if [ -f requirements.dev.txt ]; then pip install -r requirements.dev.txt; fi
-          mkdir -p reports/flake8 reports/mypy
+          pip install -r requirements/dev.txt
+          mkdir -p reports/mypy
 
       - name: Ruff
-        run: ruff check .
-
-      - name: Flake8 (wemake) + HTML report
         run: |
-          flake8 . --format=html --htmldir=reports/flake8
+          python -m ruff check .
 
-      - name: Mypy + HTML report (non-blocking)
+      - name: Mypy (non-blocking) + HTML report
         continue-on-error: true
         run: |
-          mypy . --html-report reports/mypy
+          python -m mypy ugc_api --html-report reports/mypy
 
-      - name: Pytest
-        run: pytest -q
+      # --- Integration tests via Docker Compose (same as local) ---
+      - name: Docker info
+        run: docker version && docker compose version
 
-      - name: Upload reports
+      - name: Prepare infra env
+        run: |
+          cp infra/.env.sample infra/.env
+
+      - name: Build & start stack
+        run: |
+          make up
+          docker compose -f infra/docker-compose.yml ps
+
+      - name: Run tests in api container
+        run: |
+          make test
+
+      - name: Upload mypy report
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: reports-${{ matrix.python-version }}
           path: reports/
 
-      - name: Telegram notify (success)
-        if: success()
-        uses: appleboy/telegram-action@v0.1.1
-        with:
-          to: ${{ secrets.TELEGRAM_TO }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          message: |
-            CI PASSED - ${{ github.repository }} @ ${{ github.ref_name }}
-            Python: ${{ matrix.python-version }}
-            Commit: ${{ github.sha }}
-            Actor: ${{ github.actor }}
-
-      - name: Telegram notify (failure)
-        if: failure()
-        uses: appleboy/telegram-action@v0.1.1
-        with:
-          to: ${{ secrets.TELEGRAM_TO }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          message: |
-            CI FAILED - ${{ github.repository }} @ ${{ github.ref_name }}
-            Python: ${{ matrix.python-version }}
-            Commit: ${{ github.sha }}
-            Actor: ${{ github.actor }}
+      - name: Shutdown stack
+        if: always()
+        run: |
+          make down
+          docker ps -a

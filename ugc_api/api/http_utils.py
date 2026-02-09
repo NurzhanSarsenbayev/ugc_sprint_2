@@ -1,5 +1,6 @@
 from functools import wraps
 from http import HTTPStatus
+
 from fastapi import HTTPException
 
 
@@ -11,6 +12,7 @@ def handle_runtime_errors(mapping: dict[str, HTTPStatus]):
     Example:
         {"review_not_found": HTTPStatus.NOT_FOUND}
     """
+
     def decorator(fn):
         @wraps(fn)
         async def wrapper(*args, **kwargs):
@@ -26,7 +28,9 @@ def handle_runtime_errors(mapping: dict[str, HTTPStatus]):
                     status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                     detail="internal_error",
                 )
+
         return wrapper
+
     return decorator
 
 

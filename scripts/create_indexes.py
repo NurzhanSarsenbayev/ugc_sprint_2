@@ -29,7 +29,11 @@ def main() -> None:
     # If you need sorting by downvotes, create a compound index.
     # A single-field index on votes.down is usually not needed.
     db["reviews"].create_index(
-        [("film_id", ASCENDING), ("votes.down", DESCENDING), ("created_at", DESCENDING)],
+        [
+            ("film_id", ASCENDING),
+            ("votes.down", DESCENDING),
+            ("created_at", DESCENDING),
+        ],
         name="reviews_film_votes_down_desc",
     )
 
