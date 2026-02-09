@@ -165,9 +165,10 @@ mypy:
 test:
 	@$(MAKE) -s up >/dev/null
 	@docker compose -f $(COMPOSE) exec -T $(API) bash -lc '\
+	  python -m pip install -q -r requirements/dev.txt; \
 	  export MONGO_DSN="$(MONGO_TEST_DSN)"; \
 	  python scripts/create_indexes.py; \
-	  pytest -v --disable-warnings \
+	  python -m pytest -v --disable-warnings \
 	    --cov=ugc_api --cov-report=term-missing \
 	    --cov-config=.coveragerc --cov-fail-under=90 \
 	'
