@@ -156,6 +156,11 @@ check: lint test
 
 fmt: lint-fix format
 
+lint-docker:
+	@docker compose -f $(COMPOSE) exec -T $(API) bash -lc '\
+	  flake8 ugc_api \
+	'
+
 mypy:
 	@docker compose -f $(COMPOSE) exec -T $(API) bash -lc '\
 	  mypy ugc_api --html-report reports/mypy \

@@ -27,9 +27,9 @@ MONGO_DSN = os.getenv(
     "mongodb://mongo:27017/engagement_bench?replicaSet=rs0",
 )
 
-TOTAL = int(os.getenv("TOTAL", "300000"))          # total reviews docs
-FILMS = int(os.getenv("FILMS", "5000"))            # distinct film_id count
-BATCH = int(os.getenv("BATCH", "1000"))            # insert_many batch size
+TOTAL = int(os.getenv("TOTAL", "300000"))  # total reviews docs
+FILMS = int(os.getenv("FILMS", "5000"))  # distinct film_id count
+BATCH = int(os.getenv("BATCH", "1000"))  # insert_many batch size
 
 MAX_VOTES = int(os.getenv("MAX_VOTES", "200"))
 TAIL_MAX = int(os.getenv("TAIL_MAX", "20"))
