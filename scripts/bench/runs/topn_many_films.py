@@ -9,7 +9,7 @@ import time
 from typing import Any, Sequence
 
 import psycopg
-from motor.motor_asyncio import AsyncIOMotorCollection, AsyncIOMotorClient
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection
 
 OPS = int(os.getenv("OPS", "200"))
 K = int(os.getenv("K", "100"))  # number of films per query
@@ -142,11 +142,10 @@ async def main() -> None:
 
         print("== TopN per many films ==")
         print(
-            f"mongo  p50={st.median(mongo_ms):6.2f} ms, p95={p95(mongo_ms):6.2f} ms, n={len(mongo_ms)}"
+            f"mongo  p50={st.median(mongo_ms):6.2f} ms, p95={p95(mongo_ms):6.2f} ms"
+            f", n={len(mongo_ms)}"
         )
-        print(
-            f"pg     p50={st.median(pg_ms):6.2f} ms, p95={p95(pg_ms):6.2f} ms, n={len(pg_ms)}"
-        )
+        print(f"pg     p50={st.median(pg_ms):6.2f} ms, p95={p95(pg_ms):6.2f} ms, n={len(pg_ms)}")
 
     finally:
         mongo_cli.close()
