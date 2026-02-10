@@ -1,156 +1,123 @@
-# Architecture
+# Architecture Overview
 
-This document explains the internal design decisions of the UGC Service.
+The project consists of two independent parts:
 
----
+1. UGC Service Runtime
+2. Storage Research Environment
 
-# 1. System Components
-
-## 1.1 API Layer (FastAPI)
-
-Responsible for:
-- Request validation
-- Dependency injection
-- Service orchestration
-- Error mapping
-- Observability (logging, tracing)
-
-The API layer contains no business logic.
+They serve different purposes.
 
 ---
 
-## 1.2 MongoDB (Primary Storage)
+# 1. UGC Service Runtime
 
-MongoDB stores:
+## Components
 
-- ratings
-- likes
-- reviews
-- review votes
+Client → FastAPI → MongoDB
+                     ↘ Redis (FilmStats cache)
 
-It is optimized for write-heavy workloads.
+### FastAPI
 
-Transactions are used for:
-- Review deletion (cascade votes)
-- Vote updates
+Handles:
 
----
+- Likes
+- Ratings
+- Reviews
+- Bookmarks
+- FilmStats aggregation
 
-## 1.3 FilmStats Aggregation Layer
+### MongoDB
 
-FilmStatsService maintains derived metrics:
+Primary storage for user engagement data.
 
-- likes
-- dislikes
-- ratings_count
-- ratings_sum
-- average rating
-- reviews_count
-- votes_up
-- votes_down
+### Redis
 
-Updates are synchronous.
+Used as read-through cache for FilmStats.
 
-This guarantees consistency between write operations and aggregated state.
+Flow:
 
----
+1. Client requests FilmStats
+2. Service checks Redis
+3. If cache miss → aggregate from MongoDB
+4. Store result in Redis (TTL)
+5. Return response
 
-## 1.4 Redis Cache (Optional)
-
-Film stats are cached in Redis.
-
-Key format:
-````
-filmstats:{film_id}
-````
-
-TTL is configurable.
-
-Cache invalidation occurs when:
-- rating changes
-- like changes
-- review created/deleted
-- vote applied/removed
-
-If Redis is unavailable, the system still works.
+Redis failures do NOT break the service.
+It falls back to MongoDB.
 
 ---
 
-## 1.5 PostgreSQL (Benchmark Only)
+# 2. Observability
 
-PostgreSQL is included to compare:
+Optional ELK stack:
 
-- Write performance
-- Aggregation performance
+API logs → Filebeat → Logstash → Elasticsearch → Kibana
 
-It is not part of the main request path.
+Logs are structured JSON and include:
 
-See `docs/research/STORAGE_BENCHMARK.md`.
+- trace_id
+- service
+- environment
+- timestamp
+- level
+- message
 
----
+Trace ID is generated per request via middleware.
 
-# 2. Write Path
-
-Example: PUT rating
-
-1. Update MongoDB document
-2. Update FilmStats counters
-3. Invalidate Redis cache
-4. Return response
-
-All operations are synchronous.
-
-This ensures read-after-write consistency.
+ELK is demo-oriented and not required for core functionality.
 
 ---
 
-# 3. Read Path
+# 3. Storage Research Environment
 
-GET /film-stats/{film_id}
+This environment exists to compare:
 
-1. Check Redis
-2. If cached → return
-3. If not → compute from MongoDB
-4. Store in Redis
-5. Return result
+- MongoDB
+- PostgreSQL
 
----
+The benchmark measures:
 
-# 4. Consistency Model
+- Insert performance
+- Aggregation queries
+- Top-N queries
+- Filtering patterns
 
-The system guarantees:
+PostgreSQL is not used by the API service.
 
-- Immediate consistency for aggregates
-- No eventual delay
-- No background workers
-- No async pipelines
-
-Trade-off:
-Higher write latency compared to eventual consistency systems.
-
-This is an intentional design decision for simplicity and determinism.
+It exists solely to demonstrate storage evaluation capability
+and understanding of trade-offs.
 
 ---
 
-# 5. Trade-offs
+# Design Decisions
 
-| Decision | Why |
-|----------|------|
-| Synchronous aggregation | Simpler correctness model |
-| No async workers | Fewer failure modes |
-| Redis optional | Graceful degradation |
-| MongoDB for OLTP | Flexible document schema |
-| No sharding | Out of scope |
+## Why MongoDB for UGC?
+
+- Document flexibility
+- Natural modeling for user interactions
+- Good fit for engagement events
+
+## Why Redis?
+
+- FilmStats is aggregation-heavy
+- Caching significantly reduces read load
+- Demonstrates production-oriented thinking
+
+## Why Separate Benchmark Stack?
+
+- Prevents research from affecting runtime
+- Demonstrates analytical capability
+- Keeps production path clean
 
 ---
 
-# 6. Failure Model
+## Type Safety
 
-If Redis fails:
-- Cache is bypassed
-- System continues
+The runtime layer (`ugc_api/`) is fully type-checked with strict mypy settings.
 
-If Mongo fails:
-- Request fails
+Design decision:
+- Repositories return explicit dict structures (no implicit Any)
+- Service layer uses typed deltas for vote transitions
+- Aggregations always return deterministic structures (no Optional leaks)
 
-No partial writes occur inside transactions.
+This ensures predictable behavior across the API layer.

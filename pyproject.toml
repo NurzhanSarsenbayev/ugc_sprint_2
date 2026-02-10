@@ -1,28 +1,20 @@
-[tool.flake8]
-max-line-length = 100
-select = ["WPS", "E", "F", "I", "B", "C90"]
-ignore = [
-  "WPS305",  # allow f-strings (example)
-  "WPS323",  # allow %-formatting (if needed)
-  "WPS110",  # allow short names (e.g., i, j)
-]
-per-file-ignores = [
-  "__init__.py: F401",
-  "tests/*: S101,DAR101,DAR201,WPS432",
-]
-exclude = [".git", ".venv", "venv", "build", "dist", "migrations"]
-
-# flake8 HTML report is generated via a separate command in CI; the path is controlled via CLI.
-
 [tool.mypy]
-python_version = "3.11"  # keep mypy baseline stable; CI still runs tests on 3.10/3.11/3.12
-ignore_missing_imports = true
+python_version = "3.11"
+show_error_codes = true
+pretty = true
+
 disallow_untyped_defs = true
 warn_return_any = true
 warn_unused_ignores = true
 no_implicit_optional = true
 strict_optional = true
 
+ignore_missing_imports = false
+
+exclude = [
+  "^tests/",
+  "^scripts/",
+]
 # mypy HTML report is controlled via CLI: --html-report .
 
 [tool.ruff]

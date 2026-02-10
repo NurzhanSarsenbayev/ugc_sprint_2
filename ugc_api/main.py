@@ -1,4 +1,5 @@
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -19,7 +20,7 @@ from ugc_api.db.mongo import get_client
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # 1) Logging must be initialized before anything else
     setup_json_logging(service=settings.app_name)
     init_sentry(settings.sentry_dsn, environment=settings.env)
@@ -49,7 +50,7 @@ include_debug_routes(app)
 
 
 @app.get("/health")
-def health():
+def health() -> dict[str, str]:
     return {"status": "ok"}
 
 

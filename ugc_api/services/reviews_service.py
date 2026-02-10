@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from typing import List, Optional
+from typing import Any, List, Optional
 
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo.errors import PyMongoError
 
 from ugc_api.models.reviews import (
@@ -25,13 +26,23 @@ UP = "up"
 DOWN = "down"
 
 
+def _vote_to_int(v: Optional[str]) -> Optional[int]:
+    if v is None:
+        return None
+    if v in ("up", "1", "+1"):
+        return 1
+    if v in ("down", "-1"):
+        return -1
+    raise ValueError(f"Unexpected vote value: {v!r}")
+
+
 class ReviewsService:  # noqa: WPS214 (methods count)
     """Business-logic for reviews (CRUD + voting).
 
     Optionally updates film stats if the `stats` dependency is provided.
     """
 
-    def __init__(self, db, stats: Optional[FilmStatsService] = None) -> None:
+    def __init__(self, db: AsyncIOMotorDatabase, stats: Optional[FilmStatsService] = None) -> None:
         """Initialize service with db adapter
         and optional film stats service."""
         self.repo = ReviewsRepo(db)
@@ -41,7 +52,7 @@ class ReviewsService:  # noqa: WPS214 (methods count)
     # ---------- helpers ----------
 
     @asynccontextmanager
-    async def _txn(self):
+    async def _txn(self) -> Any:
         """Open mongo session + transaction and yield session."""
         async with await self.repo.client.start_session() as session:
             async with session.start_transaction():
@@ -150,11 +161,7 @@ class ReviewsService:  # noqa: WPS214 (methods count)
                 # 1) delete all votes of the review
                 await self.votes_repo.delete_many_by_review(review_id, session=session)
                 # 2) delete review and get its film_id
-                deleted = await self.repo.delete_and_return(
-                    user_id,
-                    review_id,
-                    session=session,
-                )
+                deleted = await self.repo.delete_and_return(review_id, session=session)
                 if not deleted:
                     return False
 
@@ -187,8 +194,8 @@ class ReviewsService:  # noqa: WPS214 (methods count)
                 # 1) update counters on review
                 updated = await self.repo.apply_vote_delta(
                     review_id,
-                    old_vote=old_vote,
-                    new_vote=new_vote,
+                    old_vote=_vote_to_int(old_vote),
+                    new_vote=_vote_to_int(new_vote),
                     session=session,
                 )
                 if not updated:
@@ -239,7 +246,7 @@ class ReviewsService:  # noqa: WPS214 (methods count)
                 # 1) decrement counters on review
                 updated = await self.repo.apply_vote_delta(
                     review_id,
-                    old_vote=old_vote,
+                    old_vote=_vote_to_int(old_vote),
                     new_vote=None,
                     session=session,
                 )

@@ -32,27 +32,27 @@ services:
           mongosh mongodb://mongo:27017 --quiet --eval \"db.adminCommand('ping')\" >/dev/null 2>&1 && break;
           sleep 1;
         done;
-      
+
         echo 'init replset (idempotent)...';
         mongosh mongodb://mongo:27017 --quiet --eval \"
           try {
             st = rs.status();
             if (st.ok) { print('replset already ok'); quit(0); }
           } catch (e) { /* not initialized */ }
-      
+
           try {
             rs.initiate({_id: 'rs0', members: [{ _id: 0, host: 'mongo:27017'}]});
           } catch (e) {
             print(e);
           }
         \";
-      
+
         echo 'waiting for primary...';
         for i in {1..60}; do
           mongosh mongodb://mongo:27017 --quiet --eval \"try { quit(db.hello().isWritablePrimary ? 0 : 1) } catch (e) { quit(1) }\" && exit 0;
           sleep 1;
         done;
-      
+
         echo 'replset not ready in time'; exit 1;
       "
     restart: "no"

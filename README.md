@@ -1,144 +1,147 @@
-# UGC Service  
+# UGC Service
 ![CI](https://github.com/NurzhanSarsenbayev/ugc_sprint_2/actions/workflows/ci.yml/badge.svg)
 
+Production-oriented user engagement service supporting:
 
-Transactional + Aggregated Backend (MongoDB + Redis + FastAPI)
+- Likes
+- Ratings
+- Reviews
+- Bookmarks
+- Aggregated FilmStats
 
-A backend service for collecting and aggregating user interactions
-(likes, ratings, reviews) with explicit workload separation.
-
-Designed as a clean architectural example of:
-- write-heavy OLTP workload
-- synchronous aggregation layer
-- optional Redis caching
-- reproducible Docker-based environment
-- CI with 90%+ test coverage
+The project demonstrates integration-first testing, caching strategy,
+observability, and storage research (MongoDB vs PostgreSQL).
 
 ---
 
-## What This Project Demonstrates
+# Quickstart (Core Runtime)
 
-This service models a common real-world problem:
-
-Applications that collect user interactions must handle:
-
-1. High-volume writes (ratings, likes, reviews)
-2. Aggregated reads (average rating, engagement metrics)
-
-Instead of mixing concerns, this project separates them:
-
-- MongoDB → write-optimized UGC storage
-- FilmStats aggregation layer → derived counters
-- Redis → optional cache for read optimization
-- FastAPI → public API
-- Docker Compose → reproducible environment
-- GitHub Actions → quality gate
-
-The focus is architectural clarity, not domain complexity.
-
----
-## Project Status
-
-- CI passing (Python 3.10 / 3.11 / 3.12)
-- 90%+ test coverage
-- Transactional MongoDB layer
-- Aggregated FilmStats layer
-- Redis caching with TTL
-- Reproducible Docker environment
-
----
-## Architecture (High-Level)
-
-Write Path:
-Client → API → MongoDB → FilmStats update → Redis invalidation
-
-Read Path:
-API → Redis (if cached) → fallback to MongoDB → cache result
-
-See `docs/ARCHITECTURE.md` for detailed explanation.
-
----
-
-## Quickstart
+Start services:
 
 ```bash
-cp infra/.env.sample infra/.env
 make up
-make ready
 ````
 
-Swagger:
-[http://localhost:8080/docs](http://localhost:8080/docs)
+Verify readiness:
 
-Health:
-[http://localhost:8080/health](http://localhost:8080/health)
-[http://localhost:8080/ready](http://localhost:8080/ready)
+```bash
+make ready
+```
 
----
-
-## Quick Demo (2–5 minutes)
+Run demo scenario:
 
 ```bash
 make demo
 ```
 
-This runs:
+Stop services:
 
-* rating
-* like
-* bookmark
-* review
-* review vote
-* film stats aggregation
+```bash
+make down
+```
 
-Details: `docs/DEMO.md`
+Core stack includes:
+
+* FastAPI
+* MongoDB
+* Redis (FilmStats cache)
 
 ---
 
-## Run Tests
+# Tests
+
+Run full test suite (integration tests + coverage):
 
 ```bash
 make test
 ```
 
-CI enforces:
-
-Integration tests run via Docker Compose and are executed on Python 3.10/3.11/3.12 in CI matrix.
-
-* Ruff
-* Mypy (non-blocking)
-* 90%+ coverage
+* Executed inside Docker
+* Coverage enforced (>= 90%)
+* CI matrix: Python 3.10 / 3.11 / 3.12
 
 ---
 
-## Project Structure
+# Observability (Optional)
 
-```
-ugc_api/        FastAPI application
-infra/          Docker configuration
-scripts/        Benchmark utilities
-tests/          Test suite
-docs/           Documentation
-```
----
+ELK demo stack available:
 
-## Observability (optional)
-
-- Structured JSON logs (stdout) with per-request `trace_id`
-- Optional local ELK stack demo (Kibana search by `trace_id`)
-
-See: `docs/OBSERVABILITY.md`
-
-Commands:
 ```bash
 make elk-up
-make elk-logs
 ```
+
+Logs include structured JSON and `trace_id` for request tracing.
+
+See: docs/OBSERVABILITY.md
+
 ---
 
-## Documentation
+# Storage Research (MongoDB vs PostgreSQL)
 
-* Architecture → `docs/ARCHITECTURE.md`
-* Operations → `docs/OPERATIONS.md`
-* Demo → `docs/DEMO.md`
-* Benchmark research → `docs/research/STORAGE_BENCHMARK.md`
+Separate benchmark stack:
+
+```bash
+make bench-up
+make bench-seed
+make bench-run
+make bench-report
+```
+
+PostgreSQL is used exclusively for storage benchmarking.
+It is NOT part of the API runtime.
+
+See: docs/research/STORAGE_BENCHMARK.md
+
+---
+
+# Project Structure
+
+Core runtime:
+
+* FastAPI API
+* MongoDB primary storage
+* Redis cache
+
+Research environment:
+
+* MongoDB
+* PostgreSQL
+
+Optional:
+
+* ELK stack (observability demo)
+
+---
+---
+
+## Quality & Tooling
+
+The project uses a strict development workflow:
+
+- `ruff` for linting and formatting
+- `mypy` (strict mode for runtime code)
+- `pre-commit` hooks
+- CI matrix: Python 3.10 / 3.11 / 3.12
+- Test coverage ≥ 90%
+
+Before committing:
+
+```bash
+pre-commit run --all-files
+```
+
+Local checks:
+```bash
+make fmt
+make test
+```
+
+---
+
+# Documentation
+
+* Architecture → docs/ARCHITECTURE.md
+* Operations → docs/OPERATIONS.md
+* Testing → docs/TESTS.md
+* Observability → docs/OBSERVABILITY.md
+* Storage Benchmark → docs/research/STORAGE_BENCHMARK.md

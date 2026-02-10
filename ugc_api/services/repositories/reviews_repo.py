@@ -3,22 +3,23 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 from bson import ObjectId
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 
 class ReviewsRepo:
     """CRUD and voting helpers for reviews."""
 
     def __init__(self, db: AsyncIOMotorDatabase) -> None:
+        self.db = db
         self.col = db["reviews"]
 
     @property
-    def client(self):
+    def client(self) -> AsyncIOMotorClient:
         """Expose motor client to open transactions in services."""
-        return self.col.database.client
+        return cast(AsyncIOMotorClient, self.col.database.client)
 
     async def insert(
         self,
@@ -83,8 +84,8 @@ class ReviewsRepo:
     async def inc_votes(
         self,
         review_id: str,
-        inc: Dict[str, int],
-        session=None,
+        inc: dict[str, int],
+        session: Any | None = None,
     ) -> bool:
         """Increment vote counters with $inc."""
         result = await self.col.update_one(
@@ -94,12 +95,7 @@ class ReviewsRepo:
         )
         return result.matched_count == 1
 
-    async def delete(
-        self,
-        user_id: str,
-        review_id: str,
-        session=None,
-    ) -> bool:
+    async def delete(self, review_id: str, user_id: str, session: Any | None = None) -> bool:
         """Delete review by id if user is the author."""
         result = await self.col.delete_one(
             {"_id": ObjectId(review_id), "user_id": user_id},
@@ -110,10 +106,9 @@ class ReviewsRepo:
     async def apply_vote_delta(
         self,
         review_id: str,
-        old_vote: Optional[str],
-        new_vote: Optional[str],
-        *,
-        session=None,
+        old_vote: Optional[int],
+        new_vote: Optional[int],
+        session: Any | None = None,
     ) -> bool:
         """Apply delta to votes.up/down according to old/new values."""
         inc: Dict[str, int] = {}
@@ -133,12 +128,7 @@ class ReviewsRepo:
 
         return await self.inc_votes(review_id, inc, session=session)
 
-    async def get_film_id(
-        self,
-        review_id: str,
-        *,
-        session=None,
-    ) -> Optional[str]:
+    async def get_film_id(self, review_id: str, session: Any | None = None) -> str | None:
         """Get film_id by review id (projection only)."""
         doc = await self.col.find_one(
             {"_id": ObjectId(review_id)},
@@ -149,15 +139,10 @@ class ReviewsRepo:
 
     async def delete_and_return(
         self,
-        user_id: str,
         review_id: str,
         *,
-        session=None,
-    ) -> Optional[Dict[str, Any]]:
+        session: Any | None = None,
+    ) -> dict[str, Any] | None:
         """Delete review and return projection with film_id (for stats)."""
-        doc = await self.col.find_one_and_delete(
-            {"_id": ObjectId(review_id), "user_id": user_id},
-            session=session,
-            projection={"film_id": 1, "_id": 1},
-        )
-        return doc
+        doc = await self.col.find_one_and_delete({"_id": ObjectId(review_id)}, session=session)
+        return cast(Optional[dict[str, Any]], doc)

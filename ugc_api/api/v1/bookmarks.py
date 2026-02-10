@@ -19,7 +19,7 @@ async def add_bookmark(
     film_id: UUID,
     user_id: str = Depends(user_id_header),
     svc: BookmarksService = Depends(get_bookmarks_service),
-):
+) -> BookmarkPutResponse:
     return await svc.add_bookmark(user_id=user_id, film_id=str(film_id))
 
 
@@ -28,7 +28,7 @@ async def remove_bookmark(
     film_id: UUID,
     user_id: str = Depends(user_id_header),
     svc: BookmarksService = Depends(get_bookmarks_service),
-):
+) -> BookmarkDeleteResponse:
     return await svc.remove_bookmark(user_id=user_id, film_id=str(film_id))
 
 
@@ -38,5 +38,5 @@ async def list_bookmarks(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     svc: BookmarksService = Depends(get_bookmarks_service),
-):
+) -> BookmarkListResponse:
     return await svc.list_bookmarks(user_id=user_id, limit=limit, offset=offset)

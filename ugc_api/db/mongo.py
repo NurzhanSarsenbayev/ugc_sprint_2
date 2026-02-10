@@ -1,6 +1,6 @@
 import logging
 
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection, AsyncIOMotorDatabase
 
 from ugc_api.core.config import settings
 
@@ -38,7 +38,7 @@ async def get_mongo_db() -> AsyncIOMotorDatabase:
     return client[settings.mongo_db]
 
 
-async def get_collection(name: str):
+async def get_collection(name: str) -> AsyncIOMotorCollection:
     db = await get_mongo_db()
     return db[name]
 

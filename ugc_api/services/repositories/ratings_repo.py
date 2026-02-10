@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional, Sequence, cast
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import ReturnDocument
@@ -32,7 +32,8 @@ class RatingsRepo:
             upsert=True,
             return_document=ReturnDocument.AFTER,
         )
-        return doc
+        assert doc is not None
+        return cast(dict[str, Any], doc)
 
     async def find_user_film(
         self,
@@ -68,43 +69,29 @@ class RatingsRepo:
         return [doc async for doc in cursor]
 
     async def film_aggregate(self, film_id: str) -> Dict[str, Any]:
-        """Aggregate film stats: avg score, likes, dislikes, count."""
-        pipeline = [
+        """Aggregate film rating stats."""
+        pipeline: list[dict[str, Any]] = [
             {"$match": {"film_id": film_id}},
             {
                 "$group": {
                     "_id": "$film_id",
+                    "ratings_count": {"$sum": 1},
+                    "ratings_sum": {"$sum": "$score"},
                     "avg_rating": {"$avg": "$score"},
-                    "likes": {
-                        "$sum": {
-                            "$cond": [{"$gte": ["$score", 6]}, 1, 0],
-                        },
-                    },
-                    "dislikes": {
-                        "$sum": {
-                            "$cond": [{"$lte": ["$score", 4]}, 1, 0],
-                        },
-                    },
-                    "count": {"$sum": 1},
-                },
+                }
             },
         ]
-        docs = await self.col.aggregate(pipeline).to_list(length=1)
-        if not docs:
-            return {
-                "film_id": film_id,
-                "avg_rating": None,
-                "likes": 0,
-                "dislikes": 0,
-                "count": 0,
-            }
 
-        group = docs[0]
+        docs = await self.col.aggregate(cast(Sequence[Mapping[str, Any]], pipeline)).to_list(
+            length=1
+        )
+        if not docs:
+            return {"ratings_count": 0, "ratings_sum": 0, "avg_rating": 0.0}
+
+        group = cast(Dict[str, Any], docs[0])
         avg = group.get("avg_rating")
         return {
-            "film_id": film_id,
-            "avg_rating": None if avg is None else round(float(avg), 2),
-            "likes": int(group["likes"]),
-            "dislikes": int(group["dislikes"]),
-            "count": int(group["count"]),
+            "ratings_count": int(group.get("ratings_count", 0)),
+            "ratings_sum": int(group.get("ratings_sum", 0)),
+            "avg_rating": 0.0 if avg is None else round(float(avg), 2),
         }

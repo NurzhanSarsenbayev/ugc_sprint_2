@@ -1,10 +1,3 @@
-Ок. Ниже — **готовый текст**, просто копипасть.
-
----
-
-## 1) Создай `docs/OBSERVABILITY.md`
-
-````md
 # Observability (ELK demo)
 
 This project supports an optional local ELK stack (Elasticsearch + Kibana + Logstash + Filebeat)
