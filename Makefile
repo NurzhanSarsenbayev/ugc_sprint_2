@@ -3,6 +3,7 @@ export STATE ?= local
 # ---------- Vars ----------
 COMPOSE        := infra/docker-compose.yml
 BENCH_COMPOSE  := infra/bench-compose.yml
+BENCH_PROJECT := ugc_bench
 API            := api
 PORT           := 8080
 TIMESTAMP      := $(shell date +%Y%m%d_%H%M%S)
@@ -16,7 +17,7 @@ MONGO_TEST_DSN := mongodb://mongo:27017/engagement_test?replicaSet=rs0
 # Bench DSN and params (override: make bench-ratings OPS=50000)
 MONGO_BENCH_DSN ?= mongodb://mongo:27017/engagement_bench?replicaSet=rs0
 PG_BENCH_DSN    ?= postgresql://bench:bench@postgres:5432/bench
-OPS        ?= 20000
+OPS        ?= 200
 CONCURRENCY?= 20
 TOPN       ?= 20
 K_LAST     ?= 20
@@ -53,7 +54,7 @@ help:
 	@echo ""
 	@echo "Quality:"
 	@echo "  test                Run pytest (creates indexes; coverage fail-under=90)"
-	@echo "  lint                Run flake8 for ugc_api"
+	@echo "  lint                Run ruff for ugc_api"
 	@echo "  mypy                Run mypy and write HTML report to reports/mypy"
 	@echo ""
 	@echo "Mongo helpers:"
@@ -109,7 +110,7 @@ down:
 
 clean:
 	@docker compose -f $(COMPOSE) down -v
-	@docker compose -f $(BENCH_COMPOSE) down -v || true
+	@docker compose -p $(BENCH_PROJECT) -f $(BENCH_COMPOSE) down -v  --remove-orphans || true
 
 ps:
 	@docker compose -f $(COMPOSE) ps
@@ -155,11 +156,6 @@ check: lint test
 
 fmt: lint-fix format
 
-lint-docker:
-	@docker compose -f $(COMPOSE) exec -T $(API) bash -lc '\
-	  flake8 ugc_api \
-	'
-
 mypy:
 	@docker compose -f $(COMPOSE) exec -T $(API) bash -lc '\
 	  mypy ugc_api --html-report reports/mypy \
@@ -194,33 +190,33 @@ sentry-test:
 
 # ---------- Bench: build & control ----------
 bench-build:
-	@docker compose -f $(BENCH_COMPOSE) build bench && echo "bench image built"
+	@docker compose -p $(BENCH_PROJECT) -f $(BENCH_COMPOSE) build bench && echo "bench image built"
 
 bench-up:
-	@docker compose -f $(BENCH_COMPOSE) up -d --remove-orphans mongo postgres && echo "Bench stack up"
+	@docker compose -p $(BENCH_PROJECT) -f $(BENCH_COMPOSE) up -d --remove-orphans mongo postgres && echo "Bench stack up"
 
 bench-down:
-	@docker compose -f $(BENCH_COMPOSE) down -v --remove-orphans || true
+	@docker compose -p $(BENCH_PROJECT) -f $(BENCH_COMPOSE) down -v --remove-orphans || true
 	@echo "Bench stack down; volumes removed"
 
 bench-ps:
-	@docker compose -f $(BENCH_COMPOSE) ps
+	@docker compose -p $(BENCH_PROJECT) -f $(BENCH_COMPOSE) ps
 
 bench-run:
 	@test -n "$(CMD)" || (echo "Usage: make bench-run CMD='<command inside bench>'" && exit 2)
-	@docker compose -f $(BENCH_COMPOSE) run --rm --remove-orphans bench bash -lc '$(CMD)'
+	@docker compose -p $(BENCH_PROJECT) -f $(BENCH_COMPOSE) run --rm --remove-orphans bench bash -lc '$(CMD)'
 
 # ---- Bench helpers ----
 bench-mongo-init:
-	MSYS2_ARG_CONV_EXCL='*' docker compose -f infra/bench-compose.yml exec -T mongo \
+	MSYS2_ARG_CONV_EXCL='*' docker compose -p $(BENCH_PROJECT) -f $(BENCH_COMPOSE) exec -T mongo \
 		mongosh --file /scripts/bench/mongo-rs-init.js
 
 
 bench-wait:
 	@printf "waiting for postgres & mongo "
 	@for i in $$(seq 1 60); do \
-	  PG=$$(docker exec bench_postgres pg_isready -U bench -d bench >/dev/null 2>&1 && echo ok || echo no); \
-	  MG=$$(docker exec bench_mongo bash -lc 'mongosh --quiet --eval "db.runCommand({ping:1}).ok" 2>/dev/null | grep -q 1 && echo ok || echo no'); \
+	  PG=$$(docker compose -p $(BENCH_PROJECT) -f $(BENCH_COMPOSE) exec -T postgres pg_isready -U bench -d bench >/dev/null 2>&1 && echo ok || echo no); \
+	  MG=$$(docker compose -p $(BENCH_PROJECT) -f $(BENCH_COMPOSE) exec -T mongo bash -lc 'mongosh --quiet --eval "db.runCommand({ping:1}).ok" 2>/dev/null | grep -q 1 && echo ok || echo no'); \
 	  printf "."; \
 	  if [ "$$PG" = "ok" ] && [ "$$MG" = "ok" ]; then echo "\npostgres & mongo up"; exit 0; fi; \
 	  sleep 1; \
@@ -228,15 +224,24 @@ bench-wait:
 	echo "\nservices not ready" && exit 1
 
 bench-setup:
-	@docker compose -f $(BENCH_COMPOSE) build bench
-	@docker compose -f $(BENCH_COMPOSE) up -d --remove-orphans mongo postgres
+	@docker compose -p $(BENCH_PROJECT) -f $(BENCH_COMPOSE) build bench
+	@docker compose -p $(BENCH_PROJECT) -f $(BENCH_COMPOSE) up -d --remove-orphans mongo postgres
 	@$(MAKE) bench-wait
 	@$(MAKE) bench-mongo-init
 	@echo "Bench stack ready"
 
+define SAVE_BENCH_LOG
+	@mkdir -p $(REPORTS_DIR)
+	@log_ts="$(REPORTS_DIR)/$(1)_$(TIMESTAMP).log"; \
+	log_latest="$(REPORTS_DIR)/$(1)_latest.log"; \
+	echo "saving $$log_ts + $$log_latest"; \
+	$(MAKE) -s $(2) | tee "$$log_ts"; \
+	cp "$$log_ts" "$$log_latest"
+endef
+
 # ---- Bench common runner (avoid pip install on every run) ----
 define RUN_BENCH
-	@docker compose -f $(BENCH_COMPOSE) run --rm bench bash -lc '$(1)'
+	@docker compose -p $(BENCH_PROJECT) -f $(BENCH_COMPOSE) run --rm bench bash -lc '$(1)'
 endef
 
 # ---- Bench seed ----
@@ -253,8 +258,18 @@ bench-seed-reviews:
 	  python scripts/bench/loaders/seed_mongo_reviews_doc.py && \
 	  python scripts/bench/loaders/seed_pg_reviews_norm.py \
 	)
-	@docker exec bench_postgres psql -U bench -d bench -c "CREATE OR REPLACE VIEW bench_review_votes AS SELECT * FROM review_votes;" >/dev/null
+	@docker compose -p $(BENCH_PROJECT) -f $(BENCH_COMPOSE) exec -T postgres \
+	psql -U bench -d bench -c "CREATE OR REPLACE VIEW bench_review_votes AS SELECT * FROM review_votes;" >/dev/null
 	@echo "reviews seeded (Mongo: bench_reviews & reviews_doc; PG: reviews & bench_reviews). View bench_review_votes ready."
+
+bench-seed-reviews-many:
+	$(call RUN_BENCH, \
+	  MONGO_DSN="$(MONGO_BENCH_DSN)" PG_DSN="$(PG_BENCH_DSN)" \
+	  python scripts/bench/loaders/seed_mongo_reviews_many_films.py && \
+	  python scripts/bench/loaders/seed_mongo_reviews_doc.py && \
+	  python scripts/bench/loaders/seed_pg_reviews_norm.py \
+	)
+	@echo "many-films seeded (Mongo: bench_reviews + reviews_doc; PG: bench_reviews)."
 
 # ---- Bench runs ----
 bench-ratings:
@@ -279,20 +294,16 @@ bench-doc-vs-rel:
 
 # ---- Bench: save logs ----
 bench-ratings-save:
-	@mkdir -p $(REPORTS_DIR)
-	@$(MAKE) bench-ratings | tee $(REPORTS_DIR)/ratings.log
+	$(call SAVE_BENCH_LOG,ratings,bench-ratings)
 
 bench-reviews-top-save:
-	@mkdir -p $(REPORTS_DIR)
-	@$(MAKE) bench-reviews-top | tee $(REPORTS_DIR)/reviews_top_tail.log
+	$(call SAVE_BENCH_LOG,reviews_top_tail,bench-reviews-top)
 
 bench-topn-save:
-	@mkdir -p $(REPORTS_DIR)
-	@$(MAKE) bench-topn | tee $(REPORTS_DIR)/topn_many_films.log
+	$(call SAVE_BENCH_LOG,topn_many_films,bench-topn)
 
 bench-doc-vs-rel-save:
-	@mkdir -p $(REPORTS_DIR)
-	@$(MAKE) bench-doc-vs-rel | tee $(REPORTS_DIR)/doc_vs_rel.log
+	$(call SAVE_BENCH_LOG,doc_vs_rel,bench-doc-vs-rel)
 
 # ---- Bench: aggregate markdown report ----
 bench-report:
@@ -300,7 +311,8 @@ bench-report:
 	@out="$(REPORTS_DIR)/results.md"; \
 	printf "# Bench Results\n\n" > "$$out"; \
 	for p in ratings reviews_top_tail topn_many_films doc_vs_rel; do \
-	  f=$$(ls -1t "$(REPORTS_DIR)/$${p}_"*.log "$(REPORTS_DIR)/$${p}_latest.log" 2>/dev/null | head -n 1); \
+	  latest="$(REPORTS_DIR)/$${p}_latest.log"; \
+        if [ -f "$$latest" ]; then f="$$latest"; else f=$$(ls -1t "$(REPORTS_DIR)/$${p}_"*.log 2>/dev/null | head -n 1); fi; \
 	  if [ -n "$$f" ]; then \
 	    printf "## %s\n\n" "$$p" >> "$$out"; \
 	    printf "source: %s\n\n" "$$(basename "$$f")" >> "$$out"; \
@@ -318,10 +330,33 @@ bench-seed-all:
 	@echo "seeded ratings+reviews"
 
 bench-run-all:
-	@mkdir -p $(REPORTS_DIR)
-	@$(MAKE) -s bench-ratings     | tee $(REPORTS_DIR)/ratings_$(TIMESTAMP).log
-	@$(MAKE) -s bench-reviews-top | tee $(REPORTS_DIR)/reviews_top_tail_$(TIMESTAMP).log
+	$(call SAVE_BENCH_LOG,ratings,bench-ratings)
+	$(call SAVE_BENCH_LOG,reviews_top_tail,bench-reviews-top)
 	@echo "core scenarios done"
+
+bench-seed-optional:
+	@$(MAKE) -s bench-seed-reviews-many
+
+bench-run-optional:
+	@$(MAKE) bench-run-optional-core OPS=200 TOPN=3 K=100 SEED=0
+
+bench-run-optional-full:
+	@$(MAKE) bench-run-optional-core OPS=20000 TOPN=20 K=100 SEED=0
+
+bench-optional:
+	@$(MAKE) -s bench-seed-optional
+	@$(MAKE) -s bench-run-optional
+	@$(MAKE) -s bench-report
+
+bench-run-optional-core:
+	@mkdir -p $(REPORTS_DIR)
+	@if [ "$(SEED)" != "0" ]; then $(MAKE) -s bench-seed-reviews-many; fi
+	@OPS=$(OPS) TOPN=$(TOPN) K=$(K) $(MAKE) -s bench-topn | tee $(REPORTS_DIR)/topn_many_films_$(TIMESTAMP).log
+	@cp $(REPORTS_DIR)/topn_many_films_$(TIMESTAMP).log $(REPORTS_DIR)/topn_many_films_latest.log
+	@$(MAKE) -s bench-doc-vs-rel | tee $(REPORTS_DIR)/doc_vs_rel_$(TIMESTAMP).log
+	@cp $(REPORTS_DIR)/doc_vs_rel_$(TIMESTAMP).log $(REPORTS_DIR)/doc_vs_rel_latest.log
+
+bench-run-full: bench-run-all bench-run-optional
 
 bench-all:
 	@$(MAKE) bench-setup
@@ -351,7 +386,8 @@ bench-run-scenario:
 
 # ---- PG compatibility for run-scripts (if SQL expects reviews/review_votes) ----
 bench-pg-compat-views:
-	@docker exec bench_postgres psql -U bench -d bench -v ON_ERROR_STOP=1 -c "\
+	@docker compose -p $(BENCH_PROJECT) -f $(BENCH_COMPOSE) exec -T postgres \
+	 psql -U bench -d bench -v ON_ERROR_STOP=1 -c "\
 	  DO $$ BEGIN \
 	    BEGIN \
 	      CREATE VIEW reviews AS SELECT * FROM bench_reviews; \
@@ -366,10 +402,10 @@ bench-pg-compat-views:
 
 # ---- Quick smoke for bench stack ----
 smoke-bench:
-	@docker exec bench_postgres pg_isready -U bench -d bench >/dev/null 2>&1 || (echo "pg down" && exit 1)
-	@docker exec bench_mongo bash -lc 'mongosh --quiet --eval "db.hello().isWritablePrimary?1:0"' | grep -q '^1$$' || (echo "mongo not PRIMARY" && exit 1)
-	@docker exec bench_postgres psql -U bench -d bench -c "SELECT 1" >/dev/null 2>&1 || (echo "pg query failed" && exit 1)
-	@docker exec bench_mongo mongosh --quiet --eval "db.runCommand({ping:1}).ok" | grep -q '^1$$' || (echo "mongo ping failed" && exit 1)
+	@docker compose -p $(BENCH_PROJECT) -f $(BENCH_COMPOSE) exec -T postgres pg_isready -U bench -d bench >/dev/null 2>&1 || (echo "pg down" && exit 1)
+	@docker compose -p $(BENCH_PROJECT) -f $(BENCH_COMPOSE) exec -T mongo bash -lc 'mongosh --quiet --eval "db.hello().isWritablePrimary?1:0"' | grep -q '^1$$' || (echo "mongo not PRIMARY" && exit 1)
+	@docker compose -p $(BENCH_PROJECT) -f $(BENCH_COMPOSE) exec -T postgres psql -U bench -d bench -c "SELECT 1" >/dev/null 2>&1 || (echo "pg query failed" && exit 1)
+	@docker compose -p $(BENCH_PROJECT) -f $(BENCH_COMPOSE) exec -T mongo mongosh --quiet --eval "db.runCommand({ping:1}).ok" | grep -q '^1$$' || (echo "mongo ping failed" && exit 1)
 	@echo "smoke-bench ok"
 
 health:

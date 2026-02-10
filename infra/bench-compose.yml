@@ -20,6 +20,43 @@ services:
       timeout: 5s
       retries: 60
 
+  mongo-rs-init:
+    image: mongo:7.0
+    depends_on:
+      mongo:
+        condition: service_started
+    entrypoint: >
+      bash -lc "
+        echo 'waiting for mongod...';
+        for i in {1..60}; do
+          mongosh mongodb://mongo:27017 --quiet --eval \"db.adminCommand('ping')\" >/dev/null 2>&1 && break;
+          sleep 1;
+        done;
+      
+        echo 'init replset (idempotent)...';
+        mongosh mongodb://mongo:27017 --quiet --eval \"
+          try {
+            st = rs.status();
+            if (st.ok) { print('replset already ok'); quit(0); }
+          } catch (e) { /* not initialized */ }
+      
+          try {
+            rs.initiate({_id: 'rs0', members: [{ _id: 0, host: 'mongo:27017'}]});
+          } catch (e) {
+            print(e);
+          }
+        \";
+      
+        echo 'waiting for primary...';
+        for i in {1..60}; do
+          mongosh mongodb://mongo:27017 --quiet --eval \"try { quit(db.hello().isWritablePrimary ? 0 : 1) } catch (e) { quit(1) }\" && exit 0;
+          sleep 1;
+        done;
+      
+        echo 'replset not ready in time'; exit 1;
+      "
+    restart: "no"
+
   # --- PostgreSQL (benchmarks) ---
   postgres:
     image: postgres:16
@@ -50,13 +87,16 @@ services:
       - ../scripts:/app/scripts:rw   # Mount code; dependencies are already baked into the image
     depends_on:
       mongo:
-        condition: service_healthy
+        condition: service_started
+      mongo-rs-init:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
     environment:
       MONGO_DSN: mongodb://mongo:27017/engagement_bench?replicaSet=rs0
       PG_DSN: postgresql://bench:bench@postgres:5432/bench
-      TOTAL: 1000000
+      TOTAL: 200000
+      FILMS: 2000
       BATCH: 10000
       CSV_BATCH: 100000
     command: >

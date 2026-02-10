@@ -12,6 +12,18 @@ The goal is not to declare a "winner", but to understand trade-offs under a real
 All tests were executed locally using Docker Compose.
 
 ---
+Benchmark is fully reproducible via:
+```bash
+make bench-all
+make bench-run-optional
+make bench-report
+```
+Raw logs are stored in:
+reports/bench/
+
+Latest generated summary:
+reports/bench/results.md
+---
 
 ## Environment
 
@@ -33,20 +45,25 @@ make bench-report
 Optional (long-running scenarios):
 
 ```bash
-make bench-run-extended
+make bench-run-optional
 make bench-report
 ```
+Report is generated at:
+reports/bench/results.md
 
 ---
 
-## Dataset Seeding Performance
+## Dataset Seeding Performance (results may vary based on hardware)
+
+Sample excerpt from a single local run (2026-02-09, Windows 11, Ryzen 5 5600, 32GB RAM, Docker Desktop).
+For the latest numbers generated from raw logs, see: reports/bench/results.md.
 
 Ratings dataset size: **1,000,000**
 
 | Storage    | Time   | Throughput        |
 | ---------- | ------ | ----------------- |
-| MongoDB    | 32.5 s | ~30,800 docs/sec  |
-| PostgreSQL | 6.7 s  | ~149,200 rows/sec |
+| MongoDB    | ~32.5 s | ~30,800 docs/sec  |
+| PostgreSQL | ~6.7 s  | ~149,200 rows/sec |
 
 Observation:
 
@@ -62,17 +79,17 @@ CONCURRENCY=20
 
 ### MongoDB
 
-* upsert p95: **19.03 ms**
-* get p95: **16.15 ms**
-* aggregation p95: **18.50 ms**
-* total p95: **46.62 ms**
+* upsert p95: **~19.03 ms**
+* get p95: **~16.15 ms**
+* aggregation p95: **~18.50 ms**
+* total p95: **~46.62 ms**
 
 ### PostgreSQL
 
-* upsert p95: **0.80 ms**
-* get p95: **0.21 ms**
-* aggregation p95: **0.20 ms**
-* total p95: **1.16 ms**
+* upsert p95: **~0.80 ms**
+* get p95: **~0.21 ms**
+* aggregation p95: **~0.20 ms**
+* total p95: **~1.16 ms**
 
 ### Observation
 
@@ -93,11 +110,11 @@ CONCURRENCY=20
 
 ### MongoDB
 
-* query p95: **21.58 ms**
+* query p95: **~21.58 ms**
 
 ### PostgreSQL
 
-* query p95: **16.28 ms**
+* query p95: **~16.28 ms**
 
 ### Observation
 
@@ -163,8 +180,8 @@ The benchmark confirms that:
 * Storage selection should consider data model flexibility and scaling strategy,
   not only microbenchmark latency.
 
-The UGC service storage decision should align with architectural goals,
-not solely with isolated latency measurements.
+Final storage decision should be aligned with product requirements,
+data evolution strategy and operational model.
 
-This benchmark demonstrates that raw latency alone does not dictate storage choice.
-The UGC service emphasizes schema flexibility and document-based modeling.
+This benchmark is one input into the storage decision.
+The final choice should align with product requirements and operational constraints.
