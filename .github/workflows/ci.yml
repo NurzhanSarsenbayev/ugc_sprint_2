@@ -45,6 +45,10 @@ jobs:
         run: |
           cp infra/.env.sample infra/.env
 
+      - name: Set python version for docker build (compose)
+        run: |
+          echo "PYTHON_VERSION=${{ matrix.python-version }}" >> $GITHUB_ENV
+
       - name: Build & start stack
         run: |
           make up

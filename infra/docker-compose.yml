@@ -3,7 +3,10 @@
 
 services:
   api:
-    build: ../
+    build:
+      context: ..
+      args:
+        PYTHON_VERSION: ${PYTHON_VERSION:-3.11}
     container_name: engagement_api
     env_file: [.env]
     ports:
@@ -46,9 +49,21 @@ services:
       mongo:
         condition: service_healthy
     entrypoint: >
-      bash -lc "mongosh mongodb://mongo:27017 --eval
-      \"rs.initiate({_id: 'rs0', members: [{ _id: 0, host: 'mongo:27017'}]}); rs.status();\""
+      bash -lc "mongosh mongodb://mongo:27017 --quiet --eval
+      \"rs.initiate({_id: 'rs0', members: [{ _id: 0, host: 'mongo:27017'}]});\" || true;
+      mongosh mongodb://mongo:27017 --quiet --eval
+      \"try { quit(rs.status().ok ? 0 : 1) } catch (e) { quit(1) }\""
     restart: "no"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mongosh --quiet --eval \"try { quit(rs.status().ok ? 0 : 1) } catch (e) { quit(1) }\""
+        ]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+      start_period: 5s
 
   postgres:
     image: postgres:16
