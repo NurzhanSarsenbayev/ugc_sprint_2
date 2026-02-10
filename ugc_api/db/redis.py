@@ -1,7 +1,7 @@
 import json
 import logging
 from datetime import date, datetime
-from typing import Any
+from typing import Any, cast
 
 from bson import ObjectId
 from redis.asyncio import Redis
@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 _client: Redis | None = None
 
 
-def _json_default(obj: object):
+def _json_default(obj: object) -> Any:
     if isinstance(obj, (datetime, date)):
         # ISO 8601, как в API
         s = obj.isoformat()
@@ -35,7 +35,7 @@ async def cache_get_json(key: str) -> dict[str, Any] | None:
         raw = await _client_instance().get(key)
         if raw is None:
             return None
-        return json.loads(raw)
+        return cast(dict[str, Any], json.loads(raw))
     except Exception:
         log.exception("Redis GET failed (key=%s)", key)
         return None

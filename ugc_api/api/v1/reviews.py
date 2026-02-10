@@ -31,7 +31,7 @@ async def create_review(
     body: ReviewCreateRequest,
     user_id: str = Depends(user_id_header),
     svc: ReviewsService = Depends(get_reviews_service),
-):
+) -> ReviewCreateResponse:
     return await svc.create_review(user_id=user_id, data=body)
 
 
@@ -40,7 +40,7 @@ async def create_review(
 async def get_review(
     review_id: str = Path(..., description="Mongo ObjectId"),
     svc: ReviewsService = Depends(get_reviews_service),
-):
+) -> ReviewItem:
     return not_found_if_none(await svc.get_review(review_id))
 
 
@@ -52,7 +52,7 @@ async def list_reviews_by_film(
     offset: int = Query(0, ge=0),
     sort: str = Query("new", pattern="^(new|top)$"),
     svc: ReviewsService = Depends(get_reviews_service),
-):
+) -> ReviewListResponse:
     return await svc.list_by_film(film_id=str(film_id), limit=limit, offset=offset, sort=sort)
 
 
@@ -63,7 +63,7 @@ async def update_review_text(
     body: ReviewUpdateRequest,
     user_id: str = Depends(user_id_header),
     svc: ReviewsService = Depends(get_reviews_service),
-):
+) -> ReviewUpdateResponse:
     ok = await svc.update_text(user_id=user_id, review_id=review_id, text=body.text)
     if not ok:
         raise HTTPException(
@@ -78,7 +78,7 @@ async def delete_review(
     review_id: str,
     user_id: str = Depends(user_id_header),
     svc: ReviewsService = Depends(get_reviews_service),
-):
+) -> None:
     deleted = await svc.delete_review(user_id=user_id, review_id=review_id)
     if not deleted:
         raise HTTPException(
@@ -94,7 +94,7 @@ async def vote_review(
     body: ReviewVoteRequest,
     user_id: str = Depends(user_id_header),
     svc: ReviewsService = Depends(get_reviews_service),
-):
+) -> ReviewVoteResponse:
     return await svc.vote(user_id=user_id, review_id=review_id, value=body.value)
 
 
@@ -104,5 +104,5 @@ async def unvote_review(
     review_id: str,
     user_id: str = Depends(user_id_header),
     svc: ReviewsService = Depends(get_reviews_service),
-):
+) -> ReviewVoteResponse:
     return await svc.unvote(user_id=user_id, review_id=review_id)

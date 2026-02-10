@@ -22,14 +22,14 @@ class LikesService:
         """Return current reaction value (+1, -1, or None)."""
         return await self.repo.get(film_id, user_id)
 
-    async def set_like(self, film_id: str, user_id: str, value: int):
+    async def set_like(self, film_id: str, user_id: str, value: int) -> None:
         """Set like/dislike state and update film stats if changed."""
         assert value in (-1, 1)
         old = await self.repo.set(film_id, user_id, value)
 
         if old == value:
             # idempotent case: no aggregate changes needed
-            return old, value
+            return
 
         like_delta = 0
         dislike_delta = 0
@@ -49,9 +49,9 @@ class LikesService:
             dislike_delta=dislike_delta,
         )
         await self.stats.invalidate_stats_cache(film_id)
-        return old, value
+        return
 
-    async def remove_like(self, film_id: str, user_id: str):
+    async def remove_like(self, film_id: str, user_id: str) -> None:
         """Remove user's reaction and update film stats accordingly."""
         old = await self.repo.delete(film_id, user_id)
         if old == 1:
@@ -60,4 +60,4 @@ class LikesService:
         elif old == -1:
             await self.stats.apply_like_delta(film_id, dislike_delta=-1)
             await self.stats.invalidate_stats_cache(film_id)
-        return old
+        return

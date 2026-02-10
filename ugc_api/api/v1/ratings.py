@@ -16,7 +16,7 @@ async def set_rating(
     score: int = Query(..., ge=1, le=10),
     user_id: str = Depends(user_id_header),
     svc: RatingsService = Depends(get_ratings_service),
-):
+) -> RatingPutResponse:
     return await svc.put_rating(user_id=user_id, film_id=str(film_id), score=score)
 
 

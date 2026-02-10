@@ -33,7 +33,6 @@ jobs:
           python -m ruff check .
 
       - name: Mypy (non-blocking) + HTML report
-        continue-on-error: true
         run: |
           python -m mypy ugc_api --html-report reports/mypy
 

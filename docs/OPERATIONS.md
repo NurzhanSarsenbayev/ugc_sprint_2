@@ -1,61 +1,134 @@
-# Operations
 
-This document explains how to run and inspect the service.
+# Operations Guide
+
+This document explains how to run and operate the service locally.
+
+The project contains two independent stacks:
+
+1. Core Runtime (UGC API)
+2. Research / Benchmark Stack (MongoDB vs PostgreSQL)
+
+They are intentionally separated.
 
 ---
 
-# 1. Local Run
+# 1. Core Runtime Stack
+
+This is the actual UGC service.
+
+## Services
+
+- engagement_api (FastAPI)
+- engagement_mongo (primary database)
+- engagement_redis (FilmStats cache)
+
+Optional:
+- ELK stack (observability demo)
+
+PostgreSQL is NOT part of the core runtime.
+
+---
+
+## Start Core Stack
 
 ```bash
-cp infra/.env.sample infra/.env
 make up
-make ready
 ````
 
----
+Verify readiness:
 
-# 2. Docker Services
+```bash
+make ready
+```
 
-* engagement_api
-* engagement_mongo
-* engagement_pg
-* engagement_redis
+Run demo scenario:
 
----
+```bash
+make demo
+```
 
-# 3. Reset Environment
+Stop services:
 
 ```bash
 make down
-make down-v
 ```
 
----
-
-# 4. Inspect Redis
+View logs:
 
 ```bash
-make redis-inspect
-make redis-ttl
+make logs-api
+make logs-mongo
+make logs-redis
 ```
 
 ---
 
-# 5. Run Tests
+# 2. Observability (Optional)
+
+ELK stack is available for demonstration purposes.
+
+Start ELK:
 
 ```bash
-make test
+make elk-up
 ```
+
+Stop ELK:
+
+```bash
+make elk-down
+```
+
+Note:
+ELK may behave differently depending on Docker Desktop vs Linux.
+It is considered a demo environment, not production-ready logging.
+
+See: docs/OBSERVABILITY.md
 
 ---
 
-# 6. Health & Readiness
+# 3. Research / Benchmark Stack
 
-Health:
+This stack is used for storage performance comparison.
 
-* Service process running
+It runs separately from the core service.
 
-Ready:
+Databases included:
 
-* Mongo reachable
-* Redis reachable
+* MongoDB
+* PostgreSQL
+
+Start benchmark environment:
+
+```bash
+make bench-up
+```
+
+Seed data:
+
+```bash
+make bench-seed
+```
+
+Run benchmark:
+
+```bash
+make bench-run
+```
+
+Generate report:
+
+```bash
+make bench-report
+```
+
+Stop benchmark stack:
+
+```bash
+make bench-down
+```
+
+This stack exists to demonstrate storage research capability,
+not to support the runtime of the API service.
+
+See: docs/research/STORAGE_BENCHMARK.md

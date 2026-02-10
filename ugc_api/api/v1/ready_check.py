@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from ugc_api.db.redis import redis_ping
 from ugc_api.dependencies import get_db
@@ -8,7 +9,7 @@ router = APIRouter(tags=["readiness"])
 
 
 @router.get("/ready")
-async def readiness(db=Depends(get_db)):
+async def readiness(db: AsyncIOMotorDatabase = Depends(get_db)) -> dict[str, str] | JSONResponse:
     mongo_ok = True
     try:
         await db.command("ping")

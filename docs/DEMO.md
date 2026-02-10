@@ -29,7 +29,7 @@ The goal is to show that:
 ```bash
 cp infra/.env.sample infra/.env
 make up
-````
+```
 
 Wait until containers become healthy.
 
