@@ -1,6 +1,6 @@
 # UGC Service  
-![CI](https://github.com/<your-username>/ugc_sprint_2/actions/workflows/ci.yml/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-90%25+-brightgreen)
+![CI](https://github.com/NurzhanSarsenbayev/ugc_sprint_2/actions/workflows/ci.yml/badge.svg)
+
 
 Transactional + Aggregated Backend (MongoDB + Redis + FastAPI)
 
@@ -103,8 +103,9 @@ make test
 
 CI enforces:
 
+Integration tests run via Docker Compose and are executed on Python 3.10/3.11/3.12 in CI matrix.
+
 * Ruff
-* Flake8 (wemake)
 * Mypy (non-blocking)
 * 90%+ coverage
 
