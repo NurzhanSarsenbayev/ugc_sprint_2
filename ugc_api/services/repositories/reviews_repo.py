@@ -113,14 +113,14 @@ class ReviewsRepo:
         """Apply delta to votes.up/down according to old/new values."""
         inc: Dict[str, int] = {}
 
-        if old_vote == "up":
+        if old_vote == 1:
             inc["votes.up"] = inc.get("votes.up", 0) - 1
-        if old_vote == "down":
+        if old_vote == -1:
             inc["votes.down"] = inc.get("votes.down", 0) - 1
 
-        if new_vote == "up":
+        if new_vote == 1:
             inc["votes.up"] = inc.get("votes.up", 0) + 1
-        if new_vote == "down":
+        if new_vote == -1:
             inc["votes.down"] = inc.get("votes.down", 0) + 1
 
         if not inc:
@@ -140,9 +140,13 @@ class ReviewsRepo:
     async def delete_and_return(
         self,
         review_id: str,
+        user_id: str,
         *,
         session: Any | None = None,
     ) -> dict[str, Any] | None:
         """Delete review and return projection with film_id (for stats)."""
-        doc = await self.col.find_one_and_delete({"_id": ObjectId(review_id)}, session=session)
+        doc = await self.col.find_one_and_delete(
+            {"_id": ObjectId(review_id), "user_id": user_id},
+            session=session,
+        )
         return cast(Optional[dict[str, Any]], doc)

@@ -14,6 +14,8 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
+      mongo-rs-init:
+        condition: service_completed_successfully
       redis:
         condition: service_started
     volumes:
@@ -29,14 +31,17 @@ services:
   mongo:
     image: mongo:7.0
     container_name: engagement_mongo
-    command: ["--replSet", "rs0"]
+    command: ["--replSet", "rs0", "--bind_ip_all"]
     ports:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: [
+        "CMD-SHELL",
+        "mongosh --quiet --eval 'try { db.adminCommand({ ping: 1 }).ok ? quit(0) : quit(1) } catch(e){ quit(1) }'"
+      ]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -49,41 +54,34 @@ services:
       mongo:
         condition: service_healthy
     entrypoint: >
-      bash -lc "mongosh mongodb://mongo:27017 --quiet --eval
-      \"rs.initiate({_id: 'rs0', members: [{ _id: 0, host: 'mongo:27017'}]});\" || true;
-      mongosh mongodb://mongo:27017 --quiet --eval
-      \"try { quit(rs.status().ok ? 0 : 1) } catch (e) { quit(1) }\""
-    restart: "no"
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "mongosh --quiet --eval \"try { quit(rs.status().ok ? 0 : 1) } catch (e) { quit(1) }\""
-        ]
-      interval: 2s
-      timeout: 5s
-      retries: 60
-      start_period: 5s
+      bash -lc '
+        set -euo pipefail
 
-  postgres:
-    image: postgres:16
-    container_name: engagement_pg
-    env_file: [.env]
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-benchmark}
-    ports:
-      - "5432:5432"
-    volumes:
-      - pg_data:/var/lib/postgresql/data
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-benchmark}"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-      start_period: 10s
+        echo "[rs-init] starting"
+
+        if mongosh "mongodb://mongo:27017" --quiet --eval "try{quit(rs.status().ok?0:1)}catch(e){quit(1)}" >/dev/null 2>&1; then
+          echo "[rs-init] already initialized"
+          exit 0
+        fi
+
+        echo "[rs-init] initiating rs0..."
+        mongosh "mongodb://mongo:27017" --quiet --eval "
+          try {
+            rs.initiate({_id:\"rs0\", members:[{_id:0, host:\"mongo:27017\"}]});
+          } catch (e) {}
+        " >/dev/null
+
+        echo "[rs-init] waiting for PRIMARY..."
+        for i in {1..90}; do
+          mongosh "mongodb://mongo:27017" --quiet --eval "db.hello().setName + \" \" + db.hello().isWritablePrimary" 2>/dev/null \
+            | grep -q "rs0 true" && echo "[rs-init] PRIMARY ready" && exit 0
+          sleep 1
+        done
+
+        echo "[rs-init] PRIMARY not ready (timeout)"
+        exit 1
+      '
+    restart: "no"
 
   redis:
     image: redis:7
@@ -158,7 +156,6 @@ services:
 
 volumes:
   mongo_data:
-  pg_data:
   es_data:
   kibana_data:
   filebeat_data:

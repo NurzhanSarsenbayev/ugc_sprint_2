@@ -1,0 +1,6 @@
+services:
+  api:
+    ports: []
+    healthcheck: null
+    restart: "no"
+    volumes: []

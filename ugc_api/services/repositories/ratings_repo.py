@@ -85,13 +85,33 @@ class RatingsRepo:
         docs = await self.col.aggregate(cast(Sequence[Mapping[str, Any]], pipeline)).to_list(
             length=1
         )
+        now = datetime.now(timezone.utc)
+
         if not docs:
-            return {"ratings_count": 0, "ratings_sum": 0, "avg_rating": 0.0}
+            return {
+                "film_id": film_id,
+                "likes": 0,
+                "dislikes": 0,
+                "ratings_count": 0,
+                "ratings_sum": 0,
+                "avg_rating": 0.0,
+                "reviews_count": 0,
+                "votes_up": 0,
+                "votes_down": 0,
+                "updated_at": now,
+            }
 
         group = cast(Dict[str, Any], docs[0])
         avg = group.get("avg_rating")
         return {
+            "film_id": film_id,
+            "likes": 0,
+            "dislikes": 0,
             "ratings_count": int(group.get("ratings_count", 0)),
             "ratings_sum": int(group.get("ratings_sum", 0)),
             "avg_rating": 0.0 if avg is None else round(float(avg), 2),
+            "reviews_count": 0,
+            "votes_up": 0,
+            "votes_down": 0,
+            "updated_at": now,
         }
