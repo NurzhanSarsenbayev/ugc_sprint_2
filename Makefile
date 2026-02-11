@@ -10,6 +10,8 @@ TIMESTAMP      := $(shell date +%Y%m%d_%H%M%S)
 PY=python
 BASE_URL?=http://localhost:8080
 USER_HEADER?=X-User-Id
+INFRA_ENV := infra/.env
+INFRA_ENV_SAMPLE := infra/.env.sample
 
 # Test DSN for pytest
 MONGO_TEST_DSN := mongodb://mongo:27017/engagement_test?replicaSet=rs0
@@ -28,7 +30,7 @@ REPORTS_DIR := reports/bench
 .DEFAULT_GOAL := help
 
 # ---------- Phony ----------
-.PHONY: help dev up build restart down clean ps logs-api logs-mongo logs-redis shell \
+.PHONY: help ensure-infra-env dev up build restart down clean ps logs-api logs-mongo logs-redis shell \
         deps-dev test lint lint-fix format fmt \
         mypy mypy-local check check-local \
         indexes dedup-bookmarks mongo-indexes \
@@ -105,11 +107,14 @@ help:
 	@echo "  smoke-bench         Quick smoke check for bench stack (pg+mongo PRIMARY)"
 
 # ---------- Core lifecycle ----------
-dev:
+ensure-infra-env:
+	@test -f $(INFRA_ENV) || (echo "Creating $(INFRA_ENV) from sample" && cp $(INFRA_ENV_SAMPLE) $(INFRA_ENV))
+
+dev: ensure-infra-env
 	@echo "Building images and starting containers..."
 	@docker compose -f $(COMPOSE) up -d --build && echo "Ready: http://localhost:$(PORT)"
 
-up:
+up: ensure-infra-env
 	@echo "Starting containers..."
 	@docker compose -f $(COMPOSE) up -d && echo "All containers started"
 
@@ -163,7 +168,7 @@ elk-restart:  ## Restart Logstash and Filebeat (after config changes)
 
 # ---------- Quality / Tests ----------
 
-deps-dev:
+deps-dev: ensure-infra-env
 	@$(MAKE) -s up >/dev/null
 	@docker compose -f $(COMPOSE) exec -T $(API) bash -lc '\
 	  python -m pip install -q -r requirements/dev.txt \
@@ -191,7 +196,7 @@ fmt: lint-fix format
 mypy:
 	@docker compose -f $(COMPOSE) exec -T $(API) mypy ugc_api
 
-test:
+test: ensure-infra-env
 	@$(MAKE) -s up >/dev/null
 	@docker compose -f $(COMPOSE) exec -T $(API) bash -lc '\
 	  command -v pytest >/dev/null 2>&1 || (echo "pytest not found. Run: make deps-dev" && exit 2); \
