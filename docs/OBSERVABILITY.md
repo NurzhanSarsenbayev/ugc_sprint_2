@@ -7,7 +7,7 @@ to demonstrate structured JSON logs and trace-based searching.
 
 ```bash
 make elk-up
-````
+```
 
 Kibana: [http://localhost:5601](http://localhost:5601)
 

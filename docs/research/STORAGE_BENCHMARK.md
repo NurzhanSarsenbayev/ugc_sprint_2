@@ -40,7 +40,7 @@ Run commands:
 ```bash
 make bench-all
 make bench-report
-````
+```
 
 Optional (long-running scenarios):
 
