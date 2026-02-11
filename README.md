@@ -1,128 +1,177 @@
-# UGC Service
+# UGC Engagement Service
+
 ![CI](https://github.com/NurzhanSarsenbayev/ugc_sprint_2/actions/workflows/ci.yml/badge.svg)
 
-Production-oriented user engagement service supporting:
+A production-minded microservice responsible for managing user engagement data:
 
-- Likes
-- Ratings
-- Reviews
-- Bookmarks
-- Aggregated FilmStats
+* Ratings
+* Likes
+* Reviews + votes
+* Bookmarks
+* Aggregated FilmStats
 
-The project demonstrates integration-first testing, caching strategy,
-observability, and storage research (MongoDB vs PostgreSQL).
+This project demonstrates how an engagement system can be implemented with:
+
+* strict runtime typing
+* reproducible Docker setup
+* integration-first testing
+* cache discipline (Redis + TTL)
+* structured logging with trace_id
+* clear separation between runtime and research environments
 
 ---
 
-# Quickstart (Core Runtime)
+# Why This Service Exists
 
-Start services:
+User engagement systems are write-heavy and aggregation-sensitive.
+
+They require:
+
+- predictable aggregation logic
+- disciplined cache invalidation
+- storage models aligned with access patterns
+- observability from day one
+
+This repository focuses on implementing these concerns
+without over-engineering the solution.
+
+---
+
+# 60-Second Local Run
+
+Start core runtime:
 
 ```bash
 make up
-````
-
-Verify readiness:
-
-```bash
 make ready
-```
-
-Run demo scenario:
-
-```bash
 make demo
 ```
 
-Stop services:
+Stop:
 
 ```bash
 make down
 ```
 
-Core stack includes:
+Core runtime includes:
 
 * FastAPI
-* MongoDB
+* MongoDB (primary storage)
 * Redis (FilmStats cache)
 
----
-
-# Tests
-
-Run full test suite (integration tests + coverage):
-
-```bash
-make test
-```
-
-* Executed inside Docker
-* Coverage enforced (>= 90%)
-* CI matrix: Python 3.10 / 3.11 / 3.12
+PostgreSQL is NOT part of the runtime stack.
 
 ---
 
-# Observability (Optional)
+# Implemented
 
-ELK demo stack available:
+Core Features:
+
+* Ratings (PUT)
+* Likes (+1 / -1)
+* Reviews + voting
+* Bookmarks
+* Aggregated FilmStats
+
+Engineering Discipline:
+
+* Redis cache with TTL and graceful fallback
+* Structured JSON logging
+* trace_id propagation
+* Integration tests (executed inside Docker)
+* Test coverage ≥ 90%
+* Strict mypy for runtime code
+* ruff (lint + format)
+* pre-commit hooks
+* CI matrix (Python 3.10 / 3.11 / 3.12)
+
+---
+
+# Optional Components
+
+These are intentionally separated from the runtime service:
+
+Observability demo (ELK):
 
 ```bash
 make elk-up
 ```
 
-Logs include structured JSON and `trace_id` for request tracing.
-
-See: docs/OBSERVABILITY.md
-
----
-
-# Storage Research (MongoDB vs PostgreSQL)
-
-Separate benchmark stack:
+Storage research stack (MongoDB vs PostgreSQL):
 
 ```bash
 make bench-up
-make bench-seed
-make bench-run
+make bench-seed-all
+make bench-run-all
 make bench-report
 ```
 
-PostgreSQL is used exclusively for storage benchmarking.
-It is NOT part of the API runtime.
+The benchmark environment exists exclusively for storage comparison research.
+It does not participate in the API runtime.
 
 See: docs/research/STORAGE_BENCHMARK.md
 
 ---
 
-# Project Structure
+# Architecture Overview
 
-Core runtime:
+The system is intentionally structured into two independent stacks:
 
-* FastAPI API
-* MongoDB primary storage
-* Redis cache
+```
+Core Runtime (docker-compose)
+────────────────────────────────────────────────────
 
-Research environment:
+Client (curl / Postman / frontend)
+                |
+               HTTP
+                v
+        UGC API (FastAPI)
+            |           \
+            |            \  FilmStats cache (TTL + fallback)
+            v             v
+        MongoDB         Redis
+        (primary)       (cache)
 
-* MongoDB
-* PostgreSQL
+Optional Observability (ELK profile)
+────────────────────────────────────────────────────
 
-Optional:
+UGC API logs (JSON + trace_id)
+        |
+        v
+    Filebeat → Logstash → Elasticsearch → Kibana
 
-* ELK stack (observability demo)
+
+Research / Benchmark Stack (separate compose)
+────────────────────────────────────────────────────
+
+Bench Runner (Python)
+        |\
+        | \
+        |  \-> MongoDB (document model)
+        |  \-> PostgreSQL (relational model)
+        |
+        └──> reports/bench/results.md
+```
+
+Key design decisions:
+
+* PostgreSQL is used exclusively for research and benchmarking.
+* The benchmark stack is isolated from the runtime API.
+* Observability (ELK) is optional and does not affect core logic.
+* Redis is used only for FilmStats caching with explicit TTL discipline.
+
+See: `docs/ARCHITECTURE.md`
 
 ---
----
 
-## Quality & Tooling
+# Quality & Development Workflow
 
-The project uses a strict development workflow:
+Local setup:
 
-- `ruff` for linting and formatting
-- `mypy` (strict mode for runtime code)
-- `pre-commit` hooks
-- CI matrix: Python 3.10 / 3.11 / 3.12
-- Test coverage ≥ 90%
+```bash
+make deps-dev
+make test
+```
 
 Before committing:
 
@@ -130,11 +179,12 @@ Before committing:
 pre-commit run --all-files
 ```
 
-Local checks:
-```bash
-make fmt
-make test
-```
+Quality gates:
+
+* strict typing for runtime code
+* integration-first testing strategy
+* reproducible container-based execution
+* enforced coverage threshold
 
 ---
 
@@ -145,3 +195,13 @@ make test
 * Testing → docs/TESTS.md
 * Observability → docs/OBSERVABILITY.md
 * Storage Benchmark → docs/research/STORAGE_BENCHMARK.md
+
+---
+
+# What This Repository Demonstrates
+
+* Clean microservice boundaries
+* Explicit runtime vs research separation
+* Reproducible local environments
+* Operational clarity
+* Storage trade-off experimentation

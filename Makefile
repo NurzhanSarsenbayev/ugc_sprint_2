@@ -28,16 +28,22 @@ REPORTS_DIR := reports/bench
 .DEFAULT_GOAL := help
 
 # ---------- Phony ----------
-.PHONY: help dev up build restart down clean ps logs shell \
-        test lint mypy indexes dedup-bookmarks mongo-indexes \
+.PHONY: help dev up build restart down clean ps logs-api logs-mongo logs-redis shell \
+        deps-dev test lint lint-fix format fmt \
+        mypy mypy-local check check-local \
+        indexes dedup-bookmarks mongo-indexes \
         sentry-test \
         elk-up elk-down elk-logs elk-restart \
         bench-build bench-up bench-down bench-ps bench-run \
-        bench-setup bench-seed-ratings bench-seed-reviews \
+        bench-mongo-init bench-wait bench-setup \
+        bench-seed-ratings bench-seed-reviews bench-seed-reviews-many \
         bench-ratings bench-reviews-top bench-topn bench-doc-vs-rel \
+        bench-ratings-save bench-reviews-top-save bench-topn-save bench-doc-vs-rel-save bench-report \
         bench-seed-all bench-run-all bench-all bench-run-scenario \
+        bench-seed-optional bench-run-optional bench-run-optional-full bench-optional bench-run-optional-core bench-run-full \
         bench-pg-compat-views smoke-bench \
-        bench-ratings-save bench-reviews-top-save bench-topn-save bench-doc-vs-rel-save bench-report
+        health ready uuid demo \
+        redis-inspect redis-ttl test-deps
 
 # ---------- Help ----------
 help:
@@ -49,13 +55,21 @@ help:
 	@echo "  down                Stop the main stack (keep volumes)"
 	@echo "  clean               Stop the stack and remove volumes (main + bench)"
 	@echo "  ps                  List containers"
-	@echo "  logs                Follow API logs"
+	@echo "  logs-api            Follow API logs"
+	@echo "  logs-mongo          Follow Mongo logs"
+	@echo "  logs-redis          Follow Redis logs"
 	@echo "  shell               Open bash inside API container"
 	@echo ""
 	@echo "Quality:"
-	@echo "  test                Run pytest (creates indexes; coverage fail-under=90)"
-	@echo "  lint                Run ruff for ugc_api"
-	@echo "  mypy                Run mypy and write HTML report to reports/mypy"
+	@echo "  deps-dev            Install dev dependencies inside API container (pytest/mypy/ruff, etc.)"
+	@echo "  test                Run pytest in container (creates indexes; coverage fail-under=90)"
+	@echo "  lint                Run ruff locally for ugc_api + scripts"
+	@echo "  format              Run ruff format locally for ugc_api + scripts"
+	@echo "  fmt                 Auto-fix + format (lint-fix + format)"
+	@echo "  mypy                Run mypy in container for ugc_api"
+	@echo "  mypy-local          Run mypy locally for ugc_api (requires local venv)"
+	@echo "  check               Run lint + mypy + test"
+	@echo "  check-local         Run lint + mypy-local"
 	@echo ""
 	@echo "Mongo helpers:"
 	@echo "  indexes             Create Mongo indexes"
@@ -115,8 +129,14 @@ clean:
 ps:
 	@docker compose -f $(COMPOSE) ps
 
-logs:
-	@docker compose -f $(COMPOSE) logs -f $(API)
+logs-api:
+	@docker compose -f $(COMPOSE) logs -f api
+
+logs-mongo:
+	@docker compose -f $(COMPOSE) logs -f mongo
+
+logs-redis:
+	@docker compose -f $(COMPOSE) logs -f redis
 
 shell:
 	@docker compose -f $(COMPOSE) exec $(API) bash
@@ -143,33 +163,38 @@ elk-restart:  ## Restart Logstash and Filebeat (after config changes)
 
 # ---------- Quality / Tests ----------
 
+deps-dev:
+	@$(MAKE) -s up >/dev/null
+	@docker compose -f $(COMPOSE) exec -T $(API) bash -lc '\
+	  python -m pip install -q -r requirements/dev.txt \
+	'
+
 lint:
-	python -m ruff check .
+	python -m ruff check ugc_api scripts
+
 
 lint-fix:
-	python -m ruff check . --fix
+	python -m ruff check ugc_api scripts --fix
 
 format:
-	python -m ruff format .
+	python -m ruff format ugc_api scripts
 
-check: lint test
+mypy-local:
+	python -m mypy ugc_api
+
+check: lint mypy test
+
+check-local: lint mypy-local
 
 fmt: lint-fix format
 
-lint-docker:
-	@docker compose -f $(COMPOSE) exec -T $(API) bash -lc '\
-	  flake8 ugc_api \
-	'
-
 mypy:
-	@docker compose -f $(COMPOSE) exec -T $(API) bash -lc '\
-	  mypy ugc_api --html-report reports/mypy \
-	'
+	@docker compose -f $(COMPOSE) exec -T $(API) mypy ugc_api
 
 test:
 	@$(MAKE) -s up >/dev/null
 	@docker compose -f $(COMPOSE) exec -T $(API) bash -lc '\
-	  python -m pip install -q -r requirements/dev.txt; \
+	  command -v pytest >/dev/null 2>&1 || (echo "pytest not found. Run: make deps-dev" && exit 2); \
 	  export MONGO_DSN="$(MONGO_TEST_DSN)"; \
 	  python scripts/create_indexes.py; \
 	  python -m pytest -v --disable-warnings \
@@ -413,11 +438,17 @@ smoke-bench:
 	@docker compose -p $(BENCH_PROJECT) -f $(BENCH_COMPOSE) exec -T mongo mongosh --quiet --eval "db.runCommand({ping:1}).ok" | grep -q '^1$$' || (echo "mongo ping failed" && exit 1)
 	@echo "smoke-bench ok"
 
+JQ ?= jq
+
+define CURL_JSON
+	curl -fsS $(1) | (command -v $(JQ) >/dev/null 2>&1 && $(JQ) . || cat)
+endef
+
 health:
-	curl -s http://localhost:8080/health | jq .
+	@$(call CURL_JSON,http://localhost:$(PORT)/health)
 
 ready:
-	curl -s http://localhost:8080/ready | jq .
+	@$(call CURL_JSON,http://localhost:$(PORT)/ready)
 
 uuid:
 	@$(PY) -c "import uuid; print(uuid.uuid4())"
@@ -474,10 +505,3 @@ redis-ttl:
 test-deps:
 	@docker compose -f $(COMPOSE) up -d mongo mongo-rs-init redis
 	@docker compose -f $(COMPOSE) ps
-
-compose:
-	docker compose -f $(COMPOSE)
-
-test-ci:
-	@docker compose -f infra/docker-compose.yml -f infra/docker-compose.ci.yml up -d mongo mongo-rs-init redis
-	@docker compose -f infra/docker-compose.yml -f infra/docker-compose.ci.yml run --rm api pytest -q

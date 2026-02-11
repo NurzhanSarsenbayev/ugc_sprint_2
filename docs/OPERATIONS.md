@@ -33,7 +33,7 @@ PostgreSQL is NOT part of the core runtime.
 
 ```bash
 make up
-````
+```
 
 Verify readiness:
 
@@ -89,34 +89,37 @@ See: docs/OBSERVABILITY.md
 
 # 3. Research / Benchmark Stack
 
-This stack is used for storage performance comparison.
-
-It runs separately from the core service.
+This stack is used for storage performance comparison (MongoDB vs PostgreSQL).
+It runs independently of the core API service.
 
 Databases included:
 
 * MongoDB
 * PostgreSQL
 
-Start benchmark environment:
+---
+
+## Core Benchmark Flow
+
+Start environment:
 
 ```bash
 make bench-up
 ```
 
-Seed data:
+Seed datasets (ratings + reviews):
 
 ```bash
-make bench-seed
+make bench-seed-all
 ```
 
-Run benchmark:
+Run core benchmark scenarios:
 
 ```bash
-make bench-run
+make bench-run-all
 ```
 
-Generate report:
+Generate aggregated report:
 
 ```bash
 make bench-report
@@ -127,6 +130,51 @@ Stop benchmark stack:
 ```bash
 make bench-down
 ```
+
+---
+
+## Run a Single Scenario
+
+```bash
+make bench-run-scenario SCENARIO=ratings
+```
+
+Available scenarios:
+
+* ratings
+* reviews-top
+* topn
+* doc-vs-rel
+
+---
+
+## Optional / Extended Benchmark Flows
+
+Run extended benchmark suite:
+
+```bash
+make bench-optional
+```
+
+Run optional scenarios only (fast defaults):
+
+```bash
+make bench-run-optional
+```
+
+Run optional scenarios with heavier defaults:
+
+```bash
+make bench-run-optional-full
+```
+
+Run full suite (core + optional):
+
+```bash
+make bench-run-full
+```
+
+---
 
 This stack exists to demonstrate storage research capability,
 not to support the runtime of the API service.

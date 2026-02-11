@@ -13,7 +13,7 @@ From project root:
 
 ```bash
 make test
-````
+```
 
 This command:
 
