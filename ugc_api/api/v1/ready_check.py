@@ -9,7 +9,7 @@ router = APIRouter(tags=["readiness"])
 
 
 @router.get("/ready")
-async def readiness(db: AsyncIOMotorDatabase = Depends(get_db)) -> dict[str, str] | JSONResponse:
+async def readiness(db: AsyncIOMotorDatabase = Depends(get_db)) -> JSONResponse:
     mongo_ok = True
     try:
         await db.command("ping")
@@ -19,7 +19,7 @@ async def readiness(db: AsyncIOMotorDatabase = Depends(get_db)) -> dict[str, str
     redis_ok = await redis_ping()
 
     if mongo_ok and redis_ok:
-        return {"status": "ready"}
+        return JSONResponse({"status": "ready"}, status_code=status.HTTP_200_OK)
 
     return JSONResponse(
         {"status": "not ready", "mongo": mongo_ok, "redis": redis_ok},

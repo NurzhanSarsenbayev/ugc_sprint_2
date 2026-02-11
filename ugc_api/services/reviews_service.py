@@ -158,15 +158,13 @@ class ReviewsService:  # noqa: WPS214 (methods count)
         """Delete review with cascade votes removal and stats update."""
         try:
             async with self._txn() as session:
-                # 1) delete all votes of the review
-                await self.votes_repo.delete_many_by_review(review_id, session=session)
-                # 2) delete review and get its film_id
-                deleted = await self.repo.delete_and_return(review_id, session=session)
+                deleted = await self.repo.delete_and_return(review_id, user_id, session=session)
                 if not deleted:
                     return False
 
+                await self.votes_repo.delete_many_by_review(review_id, session=session)
+
                 film_id = deleted["film_id"]
-                # 3) update aggregates
                 if self.stats:
                     await self.stats.apply_review_deleted(film_id)
                     await self.stats.invalidate_stats_cache(film_id)

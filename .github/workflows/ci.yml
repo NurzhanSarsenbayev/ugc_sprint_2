@@ -10,6 +10,8 @@ jobs:
   lint-test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
+      max-parallel: 1
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
 
@@ -57,7 +59,14 @@ jobs:
 
       - name: Run tests in api container
         run: |
-          make test
+          docker compose -f infra/docker-compose.yml exec -T api bash -lc '\
+            python -m pip install -q -r requirements/dev.txt; \
+            export MONGO_DSN="mongodb://mongo:27017/engagement_test?replicaSet=rs0"; \
+            python scripts/create_indexes.py; \
+            python -m pytest -v --disable-warnings \
+              --cov=ugc_api --cov-report=term-missing \
+              --cov-config=.coveragerc --cov-fail-under=90 \
+          '
 
       - name: Upload mypy report
         uses: actions/upload-artifact@v4

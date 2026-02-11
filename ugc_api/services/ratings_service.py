@@ -107,4 +107,15 @@ class RatingsService:
             return FilmStatsResponse(**doc)
 
         agg = await self.repo.film_aggregate(film_id=film_id)
-        return FilmStatsResponse(**agg)
+        ratings_count = int(agg.get("ratings_count", 0))
+
+        avg = agg.get("avg_rating")
+        avg_rating = None if ratings_count == 0 else (None if avg is None else float(avg))
+
+        return FilmStatsResponse(
+            film_id=film_id,
+            avg_rating=avg_rating,
+            likes=0,
+            dislikes=0,
+            count=ratings_count,
+        )

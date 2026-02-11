@@ -470,3 +470,14 @@ redis-ttl:
 	if [ -z "$$key" ]; then echo "no filmstats:* keys"; exit 0; fi; \
 	echo "$$key"; \
 	docker exec engagement_redis redis-cli TTL "$$key"
+
+test-deps:
+	@docker compose -f $(COMPOSE) up -d mongo mongo-rs-init redis
+	@docker compose -f $(COMPOSE) ps
+
+compose:
+	docker compose -f $(COMPOSE)
+
+test-ci:
+	@docker compose -f infra/docker-compose.yml -f infra/docker-compose.ci.yml up -d mongo mongo-rs-init redis
+	@docker compose -f infra/docker-compose.yml -f infra/docker-compose.ci.yml run --rm api pytest -q
