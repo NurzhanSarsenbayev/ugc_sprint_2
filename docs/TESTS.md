@@ -41,7 +41,7 @@ Each job:
 * Starts the stack
 * Executes `make test`
 * Runs lint (ruff)
-* Runs type checking (mypy, non-blocking)
+* Runs type checking (mypy)
 
 The matrix ensures compatibility across supported Python versions.
 
