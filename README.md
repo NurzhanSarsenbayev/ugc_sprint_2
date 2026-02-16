@@ -1,6 +1,6 @@
 # UGC Engagement Service
 
-![CI](https://github.com/NurzhanSarsenbayev/ugc_sprint_2/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/NurzhanSarsenbayev/ugc-engagement-service/actions/workflows/ci.yml/badge.svg)
 
 A production-minded microservice responsible for managing user engagement data:
 
